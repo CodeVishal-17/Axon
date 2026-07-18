@@ -8,7 +8,9 @@ services:
       POSTGRES_PASSWORD: axon
       POSTGRES_DB: axon
     ports:
-      - "5432:5432"
+      # Host port 5434: this machine runs a native Postgres on 5432 (and
+      # another project on 5433). In-network consumers still use db:5432.
+      - "5434:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:

@@ -31,7 +31,7 @@ class Settings(BaseSettings):
 
     # --- Database ---
     # psycopg (v3) driver; sync SQLAlchemy — see axon/db/session.py for why.
-    database_url: str = "postgresql+psycopg://axon:axon@localhost:5432/axon"
+    database_url: str = "postgresql+psycopg://axon:axon@localhost:5434/axon"
 
     # --- CORS ---
     # Kept as a plain comma-separated string (not list[str]) so it can be set

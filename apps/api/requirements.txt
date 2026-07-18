@@ -1,0 +1,8 @@
+# Runtime dependencies for the Axon API and worker.
+fastapi>=0.115
+uvicorn[standard]>=0.30
+pydantic-settings>=2.4
+SQLAlchemy>=2.0.30
+psycopg[binary]>=3.2
+alembic>=1.13
+pgvector>=0.3

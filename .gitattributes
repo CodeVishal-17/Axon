@@ -1,0 +1,8 @@
+# Normalize all text files to LF in the repo and on checkout.
+# Two devs on different OSes + files copied into Linux Docker images —
+# LF everywhere avoids an entire class of cross-platform diff noise.
+* text=auto eol=lf
+
+# Windows-specific files keep CRLF if we ever add them
+*.bat text eol=crlf
+*.cmd text eol=crlf

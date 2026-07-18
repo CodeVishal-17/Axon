@@ -1,0 +1,44 @@
+services:
+  db:
+    # pgvector/pgvector ships Postgres with the vector extension pre-installed,
+    # so `CREATE EXTENSION vector` works without building a custom image.
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_USER: axon
+      POSTGRES_PASSWORD: axon
+      POSTGRES_DB: axon
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U axon -d axon"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  api:
+    build:
+      context: apps/api
+    environment:
+      # Inside the compose network the DB host is the service name, not localhost.
+      DATABASE_URL: postgresql+psycopg://axon:axon@db:5432/axon
+      ENVIRONMENT: development
+      LOG_LEVEL: INFO
+      CORS_ORIGINS: http://localhost:3000
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+    # Bind-mount source for hot reload during the hackathon; the Dockerfile's
+    # baked-in copy is what production deploys (Railway/Render) will use.
+    volumes:
+      - ./apps/api:/app
+    command: uvicorn axon.main:app --host 0.0.0.0 --port 8000 --reload
+
+  # The `worker` service is added in T1.3 (same image, different command).
+  # The `web` service is added in T0.3.
+
+volumes:
+  pgdata:

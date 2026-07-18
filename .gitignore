@@ -26,3 +26,7 @@ Thumbs.db
 
 # Local data
 pgdata/
+
+# Type-generation intermediate (regenerate with `make types`;
+# the generated lib/api/types.generated.ts IS committed)
+apps/web/openapi.json

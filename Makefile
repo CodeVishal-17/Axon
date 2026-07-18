@@ -5,7 +5,7 @@
 COMPOSE := docker compose
 API_DIR := apps/api
 
-.PHONY: install db api dev down logs revision migrate test
+.PHONY: install db api dev down logs revision migrate test types
 
 ## Install backend dependencies into the active virtualenv
 install:
@@ -42,3 +42,9 @@ migrate:
 ## Run backend tests
 test:
 	cd $(API_DIR) && pytest -q
+
+## Regenerate frontend API types from the backend's OpenAPI schema.
+## Run after ANY change to backend routes or response models.
+types:
+	cd $(API_DIR) && python scripts/export_openapi.py ../web/openapi.json
+	cd apps/web && npm run types

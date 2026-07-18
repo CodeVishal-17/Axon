@@ -2,13 +2,25 @@
  * API client layer — the single module through which the frontend talks to
  * the Axon backend. Components never call fetch() directly.
  *
- * Response types: `HealthResponse` is hand-written for now; T0.5 replaces
- * hand-written API types with types generated from the backend's OpenAPI
- * schema (`make types`), and this module becomes their only consumer.
+ * All API payload types come from `lib/api/types.generated.ts`, generated
+ * from the backend's OpenAPI schema via `make types`. Hand-written API
+ * interfaces are forbidden in this codebase: if the backend changes a
+ * response model, the frontend build must fail until types are regenerated.
  */
+
+import type { components } from "@/lib/api/types.generated";
 
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+
+// --- Generated schema aliases ------------------------------------------
+// Friendly names for the generated component schemas. Add one line per new
+// backend model as endpoints land; components["schemas"][...] lookups fail
+// the build if the backend renames or removes a model.
+
+export type HealthResponse = components["schemas"]["HealthResponse"];
+
+// --- Client ------------------------------------------------------------
 
 /** Error carrying HTTP context so callers can branch on status. */
 export class ApiError extends Error {
@@ -54,15 +66,7 @@ export async function apiFetch<T>(
 
 // --- Endpoints ---------------------------------------------------------
 
-/** Mirror of the backend's HealthResponse model (axon/api/health.py). */
-export interface HealthResponse {
-  status: string;
-  version: string;
-  environment: string;
-  database: "ok" | "unavailable";
-}
-
-/** GET /healthz — used to verify frontend↔backend wiring. */
+/** GET /healthz — used by the header status dot and integration checks. */
 export function getHealth(): Promise<HealthResponse> {
   return apiFetch<HealthResponse>("/healthz");
 }

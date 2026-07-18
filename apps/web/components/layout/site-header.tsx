@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ApiStatus } from "@/components/layout/api-status";
 
 /**
  * Global top bar, present on every page.
@@ -20,6 +21,7 @@ export function SiteHeader() {
           </span>
         </Link>
         <nav className="text-muted-foreground flex items-center gap-4 text-sm">
+          <ApiStatus />
           <a
             href="https://github.com/CodeVishal-17/Axon"
             target="_blank"

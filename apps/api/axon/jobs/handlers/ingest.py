@@ -24,6 +24,7 @@ from axon.db.models import Repo
 from axon.services.claims import ClaimExtractionService, llm_configured
 from axon.services.ingestion import IngestionService
 from axon.services.linking import EntityLinker
+from axon.services.verification import DriftVerifier
 
 logger = logging.getLogger("axon.jobs.ingest")
 
@@ -49,3 +50,8 @@ def run(db: Session, payload: dict[str, Any]) -> None:
     # Linking always runs: the path/symbol tiers are free and cover most
     # claims; embedding/LLM tiers self-disable without credentials.
     EntityLinker(db).run(repo)
+
+    if llm_configured():
+        # At-rest verification pass: budgeted, strongest-linked claims
+        # first. This is what seeds the Truth Feed after a fresh ingest.
+        DriftVerifier(db).run(repo)

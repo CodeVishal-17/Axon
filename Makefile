@@ -60,6 +60,13 @@ eval-claims:
 eval-linker:
 	cd $(API_DIR) && python -m axon.evals.linker_eval
 
+## Evaluate the drift-verification prompt against seeded-drift and
+## known-true fixtures. `auto` uses the real LLM when keys are configured,
+## else the deterministic self-test. Pin with VERIFIER=scripted etc.
+VERIFIER ?= auto
+eval-verify:
+	cd $(API_DIR) && python -m axon.evals.verify_eval --provider $(VERIFIER)
+
 ## Regenerate frontend API types from the backend's OpenAPI schema.
 ## Run after ANY change to backend routes or response models.
 types:

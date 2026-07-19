@@ -48,6 +48,11 @@ class Settings(BaseSettings):
     linker_top_k: int = 3
     linker_max_links_per_claim: int = 3
 
+    # --- Drift verification ---
+    # Max claims verified per at-rest pass (economics knob, architecture §17)
+    verify_budget: int = 50
+    verify_max_source_chars: int = 8000
+
     # --- LLM provider ---
     llm_provider: str = "openai"  # openai | anthropic
     openai_api_key: str | None = None

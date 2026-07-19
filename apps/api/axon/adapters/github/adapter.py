@@ -162,6 +162,25 @@ class GitHubAdapter:
                         continue
                     yield RepoFile(path=path, content=extracted.read())
 
+    def fetch_file(self, path: str, max_bytes: int = 500_000) -> bytes | None:
+        """Current content of one file at the default branch, or None.
+
+        Used by drift verification: the DB stores only content hashes for
+        code, so 'what does the code say TODAY' is always fetched fresh.
+        Contents API returns base64 for files up to 1MB.
+        """
+        import base64  # noqa: PLC0415
+
+        try:
+            payload = self._get(f"/repos/{self.full_name}/contents/{path}").json()
+        except AdapterError:
+            return None  # deleted/renamed files are a normal outcome here
+        if payload.get("type") != "file" or payload.get("size", 0) > max_bytes:
+            return None
+        if payload.get("encoding") == "base64" and payload.get("content"):
+            return base64.b64decode(payload["content"])
+        return None
+
     def iter_commits(self, limit: int) -> Iterator[CommitInfo]:
         for item in self._paginate(f"/repos/{self.full_name}/commits", limit):
             sha = item["sha"]

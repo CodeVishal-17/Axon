@@ -1,0 +1,121 @@
+{
+  "cases": [
+    {
+      "id": "drift-token-ttl",
+      "expected": "CONTRADICTED",
+      "claim": {"statement": "Access tokens expire after 24 hours.", "claim_type": "behavior"},
+      "sources": [
+        {"path": "src/auth/token.ts",
+         "content": "import { sign } from './jwt';\n\nexport const TOKEN_TTL_HOURS = 1; // reduced from 24 in PR #47\n\nexport function issueToken(user: User): Token {\n  return sign(user, { expiresIn: `${TOKEN_TTL_HOURS}h` });\n}\n"}
+      ]
+    },
+    {
+      "id": "drift-postgres-port",
+      "expected": "CONTRADICTED",
+      "claim": {"statement": "The dockerized Postgres container is published on host port 5432.", "claim_type": "architecture"},
+      "sources": [
+        {"path": "docker-compose.yml",
+         "content": "services:\n  db:\n    image: pgvector/pgvector:pg16\n    ports:\n      # Host port 5434: this machine runs a native Postgres on 5432.\n      - \"5434:5432\"\n"}
+      ]
+    },
+    {
+      "id": "drift-max-attempts",
+      "expected": "CONTRADICTED",
+      "claim": {"statement": "A job fails permanently after 5 attempts.", "claim_type": "behavior"},
+      "sources": [
+        {"path": "apps/api/axon/config.py",
+         "content": "    # --- Job queue / worker ---\n    worker_poll_interval_s: float = 2.0\n    job_max_attempts: int = 3\n    job_retry_backoff_s: float = 15.0\n"}
+      ]
+    },
+    {
+      "id": "drift-health-endpoint",
+      "expected": "CONTRADICTED",
+      "claim": {"statement": "The health endpoint is served at /health.", "claim_type": "behavior"},
+      "sources": [
+        {"path": "apps/api/axon/api/health.py",
+         "content": "router = APIRouter(tags=[\"health\"])\n\n\n@router.get(\"/healthz\", response_model=HealthResponse)\ndef healthz() -> HealthResponse:\n    \"\"\"Report process liveness plus a best-effort database check.\"\"\"\n"}
+      ]
+    },
+    {
+      "id": "drift-default-provider",
+      "expected": "CONTRADICTED",
+      "claim": {"statement": "The default LLM provider is Anthropic.", "claim_type": "architecture"},
+      "sources": [
+        {"path": "apps/api/axon/config.py",
+         "content": "    # --- LLM provider ---\n    llm_provider: str = \"openai\"  # openai | anthropic\n    openai_api_key: str | None = None\n    anthropic_api_key: str | None = None\n"}
+      ]
+    },
+    {
+      "id": "true-poll-interval",
+      "expected": "VERIFIED",
+      "claim": {"statement": "An idle worker polls for jobs every 2 seconds by default.", "claim_type": "behavior"},
+      "sources": [
+        {"path": "apps/api/axon/config.py",
+         "content": "    # --- Job queue / worker ---\n    worker_poll_interval_s: float = 2.0\n    job_max_attempts: int = 3\n"}
+      ]
+    },
+    {
+      "id": "true-skip-locked",
+      "expected": "VERIFIED",
+      "claim": {"statement": "queue.py claims pending jobs using FOR UPDATE SKIP LOCKED.", "claim_type": "architecture"},
+      "sources": [
+        {"path": "apps/api/axon/jobs/queue.py",
+         "content": "    job = db.execute(\n        select(Job)\n        .where(Job.status == JobStatus.PENDING, Job.run_at <= _now())\n        .order_by(Job.run_at)\n        .limit(1)\n        .with_for_update(skip_locked=True)\n    ).scalar_one_or_none()\n"}
+      ]
+    },
+    {
+      "id": "true-postgres-port",
+      "expected": "VERIFIED",
+      "claim": {"statement": "The dockerized Postgres container is published on host port 5434.", "claim_type": "architecture"},
+      "sources": [
+        {"path": "docker-compose.yml",
+         "content": "services:\n  db:\n    image: pgvector/pgvector:pg16\n    ports:\n      - \"5434:5432\"\n"}
+      ]
+    },
+    {
+      "id": "true-embedding-dim",
+      "expected": "VERIFIED",
+      "claim": {"statement": "Claim embeddings are 1536-dimensional.", "claim_type": "architecture"},
+      "sources": [
+        {"path": "apps/api/axon/db/models.py",
+         "content": "# Dimension of claims.embedding; must match the provider layer's embed().\nEMBEDDING_DIM = 1536\n"}
+      ]
+    },
+    {
+      "id": "true-healthz",
+      "expected": "VERIFIED",
+      "claim": {"statement": "The health endpoint is /healthz.", "claim_type": "behavior"},
+      "sources": [
+        {"path": "apps/api/axon/api/health.py",
+         "content": "@router.get(\"/healthz\", response_model=HealthResponse)\ndef healthz() -> HealthResponse:\n"}
+      ]
+    },
+    {
+      "id": "insufficient-rate-limit",
+      "expected": "INSUFFICIENT_EVIDENCE",
+      "claim": {"statement": "Unauthenticated GitHub API requests are limited to 60 per hour.", "claim_type": "status"},
+      "sources": [
+        {"path": "apps/api/axon/config.py",
+         "content": "    github_token: str | None = None\n    github_webhook_secret: str | None = None\n"}
+      ]
+    },
+    {
+      "id": "insufficient-review-policy",
+      "expected": "INSUFFICIENT_EVIDENCE",
+      "claim": {"statement": "Pull requests require two approvals before merging.", "claim_type": "process"},
+      "sources": [
+        {"path": "docker-compose.yml",
+         "content": "services:\n  api:\n    build:\n      context: apps/api\n    ports:\n      - \"8000:8000\"\n"}
+      ]
+    },
+    {
+      "id": "insufficient-latency",
+      "expected": "INSUFFICIENT_EVIDENCE",
+      "claim": {"statement": "The API responds in under 100 milliseconds.", "claim_type": "behavior"},
+      "sources": [
+        {"path": "apps/api/axon/main.py",
+         "content": "def create_app() -> FastAPI:\n    app = FastAPI(title=settings.app_name, version=__version__, lifespan=lifespan)\n    app.include_router(health_router)\n    return app\n"}
+      ]
+    }
+  ]
+}

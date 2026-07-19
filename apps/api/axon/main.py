@@ -14,6 +14,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from axon import __version__
 from axon.api.health import router as health_router
+from axon.api.repos import router as repos_router
 from axon.config import get_settings
 from axon.db.session import dispose_engine
 
@@ -59,7 +60,8 @@ def create_app() -> FastAPI:
     )
 
     app.include_router(health_router)
-    # Future routers (repos, findings, graph, ask, fixes, webhooks, ws) are
+    app.include_router(repos_router)
+    # Future routers (findings, graph, ask, fixes, webhooks, ws) are
     # mounted here as their tasks land.
 
     return app

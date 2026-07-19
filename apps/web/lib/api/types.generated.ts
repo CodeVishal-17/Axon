@@ -24,10 +24,124 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/repos": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Connect Repo
+         * @description Connect a repository and enqueue its first ingest.
+         *
+         *     Idempotent on ``full_name``: reconnecting an existing repo updates the
+         *     stored token (if provided) and re-enqueues ingestion only when the
+         *     previous one failed — a healthy repo is not re-ingested by accident.
+         */
+        post: operations["connect_repo_api_repos_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/repos/{repo_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Repo
+         * @description Repository metadata + ingest status + latest job + entity counts.
+         */
+        get: operations["get_repo_api_repos__repo_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/repos/{repo_id}/entities": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Entities
+         * @description Paginated entity listing with kind filter, sort, and name/path search.
+         *
+         *     Bulky meta payloads (doc/section text, issue bodies) are stripped from
+         *     list responses — detail-level content ships with the feed/claims APIs.
+         */
+        get: operations["list_entities_api_repos__repo_id__entities_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /**
+         * EntityKind
+         * @enum {string}
+         */
+        EntityKind: "code_file" | "symbol" | "doc" | "doc_section" | "issue" | "pull_request" | "person";
+        /** EntityOut */
+        EntityOut: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            kind: components["schemas"]["EntityKind"];
+            /** Name */
+            name: string;
+            /** Path */
+            path: string | null;
+            /** External Id */
+            external_id: string | null;
+            /** Content Hash */
+            content_hash: string | null;
+            /** Meta */
+            meta: {
+                [key: string]: unknown;
+            };
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /** EntityPage */
+        EntityPage: {
+            /** Total */
+            total: number;
+            /** Limit */
+            limit: number;
+            /** Offset */
+            offset: number;
+            /** Items */
+            items: components["schemas"]["EntityOut"][];
+        };
+        /** HTTPValidationError */
+        HTTPValidationError: {
+            /** Detail */
+            detail?: components["schemas"]["ValidationError"][];
+        };
         /**
          * HealthResponse
          * @description Shape of the /healthz payload (also lands in the OpenAPI schema).
@@ -41,6 +155,108 @@ export interface components {
             environment: string;
             /** Database */
             database: string;
+        };
+        /**
+         * IngestStatus
+         * @enum {string}
+         */
+        IngestStatus: "pending" | "ingesting" | "ready" | "failed";
+        /**
+         * JobKind
+         * @enum {string}
+         */
+        JobKind: "ingest" | "verify" | "generate_fix";
+        /** JobOut */
+        JobOut: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            kind: components["schemas"]["JobKind"];
+            status: components["schemas"]["JobStatus"];
+            /** Attempts */
+            attempts: number;
+            /** Error */
+            error: string | null;
+            /**
+             * Run At
+             * Format: date-time
+             */
+            run_at: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
+        /**
+         * JobStatus
+         * @enum {string}
+         */
+        JobStatus: "pending" | "running" | "succeeded" | "failed";
+        /**
+         * RepoCreate
+         * @description Connect a repository. ``token`` is a fine-grained PAT scoped to the
+         *     repo; it is persisted server-side and never returned by any endpoint.
+         */
+        RepoCreate: {
+            /**
+             * Full Name
+             * @example owner/repository
+             */
+            full_name: string;
+            /** Token */
+            token?: string | null;
+        };
+        /**
+         * RepoDetail
+         * @description Repo + pipeline visibility: latest job (progress/errors) and entity
+         *     counts by kind (empty until the first ingest lands).
+         */
+        RepoDetail: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Full Name */
+            full_name: string;
+            /** Provider */
+            provider: string;
+            /** Default Branch */
+            default_branch: string;
+            ingest_status: components["schemas"]["IngestStatus"];
+            /** Last Ingested Sha */
+            last_ingested_sha: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+            /** Entity Counts */
+            entity_counts: {
+                [key: string]: number;
+            };
+            latest_job: components["schemas"]["JobOut"] | null;
+        };
+        /** ValidationError */
+        ValidationError: {
+            /** Location */
+            loc: (string | number)[];
+            /** Message */
+            msg: string;
+            /** Error Type */
+            type: string;
+            /** Input */
+            input?: unknown;
+            /** Context */
+            ctx?: Record<string, never>;
         };
     };
     responses: never;
@@ -67,6 +283,109 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HealthResponse"];
+                };
+            };
+        };
+    };
+    connect_repo_api_repos_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RepoCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RepoDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_repo_api_repos__repo_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                repo_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RepoDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_entities_api_repos__repo_id__entities_get: {
+        parameters: {
+            query?: {
+                kind?: components["schemas"]["EntityKind"] | null;
+                /** @description search name/path */
+                q?: string | null;
+                sort?: "name" | "path" | "kind" | "updated_at";
+                order?: "asc" | "desc";
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path: {
+                repo_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EntityPage"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

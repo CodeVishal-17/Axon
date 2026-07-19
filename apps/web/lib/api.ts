@@ -19,6 +19,13 @@ const API_BASE_URL =
 // the build if the backend renames or removes a model.
 
 export type HealthResponse = components["schemas"]["HealthResponse"];
+export type RepoCreate = components["schemas"]["RepoCreate"];
+export type RepoDetail = components["schemas"]["RepoDetail"];
+export type JobOut = components["schemas"]["JobOut"];
+export type EntityOut = components["schemas"]["EntityOut"];
+export type EntityPage = components["schemas"]["EntityPage"];
+export type EntityKind = EntityOut["kind"];
+export type IngestStatus = RepoDetail["ingest_status"];
 
 // --- Client ------------------------------------------------------------
 
@@ -69,4 +76,37 @@ export async function apiFetch<T>(
 /** GET /healthz — used by the header status dot and integration checks. */
 export function getHealth(): Promise<HealthResponse> {
   return apiFetch<HealthResponse>("/healthz");
+}
+
+/** POST /api/repos — connect a repository and enqueue its first ingest. */
+export function connectRepo(body: RepoCreate): Promise<RepoDetail> {
+  return apiFetch<RepoDetail>("/api/repos", {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+}
+
+/** GET /api/repos/{id} — metadata, ingest status, latest job, counts. */
+export function getRepo(repoId: string): Promise<RepoDetail> {
+  return apiFetch<RepoDetail>(`/api/repos/${repoId}`);
+}
+
+/** GET /api/repos/{id}/entities — paginated, filterable entity listing. */
+export function listEntities(
+  repoId: string,
+  params: {
+    kind?: EntityKind;
+    q?: string;
+    sort?: "name" | "path" | "kind" | "updated_at";
+    order?: "asc" | "desc";
+    limit?: number;
+    offset?: number;
+  } = {},
+): Promise<EntityPage> {
+  const search = new URLSearchParams();
+  for (const [key, value] of Object.entries(params)) {
+    if (value !== undefined) search.set(key, String(value));
+  }
+  const suffix = search.size ? `?${search}` : "";
+  return apiFetch<EntityPage>(`/api/repos/${repoId}/entities${suffix}`);
 }

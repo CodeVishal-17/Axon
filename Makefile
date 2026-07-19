@@ -19,6 +19,10 @@ db:
 api:
 	cd $(API_DIR) && uvicorn axon.main:app --reload --port 8000
 
+## Run the job worker locally against dockerized Postgres
+worker:
+	cd $(API_DIR) && python -m axon.jobs.worker
+
 ## Full stack in Docker (db + api)
 dev:
 	$(COMPOSE) up --build

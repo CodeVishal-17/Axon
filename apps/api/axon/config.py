@@ -50,6 +50,14 @@ class Settings(BaseSettings):
     # so OPENAI_API_KEY is required even when LLM_PROVIDER=anthropic.
     embedding_model: str = "text-embedding-3-small"
 
+    # --- Job queue / worker ---
+    worker_poll_interval_s: float = 2.0
+    job_max_attempts: int = 3
+    job_retry_backoff_s: float = 15.0
+    # Must exceed the longest legitimate job duration: a running job holds
+    # no row lock, so anything "running" older than this is a dead worker.
+    job_stale_lock_seconds: float = 300.0
+
     # --- GitHub (consumed from T1.2 / T3.1 onward) ---
     github_token: str | None = None
     github_webhook_secret: str | None = None

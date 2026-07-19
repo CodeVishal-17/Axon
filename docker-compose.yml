@@ -39,8 +39,22 @@ services:
       - ./apps/api:/app
     command: uvicorn axon.main:app --host 0.0.0.0 --port 8000 --reload
 
-  # The `worker` service is added in T1.3 (same image, different command).
-  # The `web` service is added in T0.3.
+  worker:
+    # Same image as the api — one codebase, two processes.
+    build:
+      context: apps/api
+    environment:
+      DATABASE_URL: postgresql+psycopg://axon:axon@db:5432/axon
+      ENVIRONMENT: development
+      LOG_LEVEL: INFO
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ./apps/api:/app
+    command: python -m axon.jobs.worker
+
+  # The `web` service is added when the frontend is containerized.
 
 volumes:
   pgdata:

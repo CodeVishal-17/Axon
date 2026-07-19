@@ -217,18 +217,18 @@ def get_extractor(name: str) -> tuple[str, Extractor]:
     if name == "empty":
         return "empty", lambda f: []
     if name in ("llm", "auto"):
-        try:
-            from axon.services.claims import extract_for_eval  # noqa: PLC0415
-        except ImportError:
+        from axon.services.claims import extract_for_eval, llm_configured  # noqa: PLC0415
+
+        if not llm_configured():
             if name == "llm":
                 raise SystemExit(
-                    "The LLM extractor (axon.services.claims.extract_for_eval) "
-                    "is not implemented yet — it lands with T2.2.\n"
-                    "Use --extractor echo (pipeline self-test) or empty."
+                    "No LLM API key configured — set OPENAI_API_KEY (and "
+                    "ANTHROPIC_API_KEY when LLM_PROVIDER=anthropic) in "
+                    "apps/api/.env, then re-run."
                 )
             print(
-                "note: LLM extractor not available yet (lands in T2.2) — "
-                "falling back to 'echo' (harness self-test).\n",
+                "note: no LLM API key configured — falling back to 'echo' "
+                "(harness self-test). Set OPENAI_API_KEY for the real eval.\n",
                 file=sys.stderr,
             )
             return get_extractor("echo")
@@ -378,6 +378,11 @@ def run(
 
 
 def main() -> None:
+    # Windows consoles/pipes default to cp1252, which can't encode the
+    # ✓/✗/── glyphs — degrade gracefully instead of crashing.
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     parser.add_argument(
         "--extractor", default="auto", choices=["auto", "llm", "echo", "empty"]

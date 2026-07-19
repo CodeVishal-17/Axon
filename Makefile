@@ -47,8 +47,12 @@ migrate:
 test:
 	cd $(API_DIR) && pytest -q
 
+## Evaluate the claim-extraction prompt against the gold fixtures.
+## `auto` runs the real LLM when API keys are configured, else falls back
+## to the deterministic echo self-test. Pin a mode with EXTRACTOR=echo etc.
+EXTRACTOR ?= auto
 eval-claims:
-	cd $(API_DIR) && python -m axon.evals.claims_eval --extractor echo --strict
+	cd $(API_DIR) && python -m axon.evals.claims_eval --extractor $(EXTRACTOR)
 
 ## Regenerate frontend API types from the backend's OpenAPI schema.
 ## Run after ANY change to backend routes or response models.

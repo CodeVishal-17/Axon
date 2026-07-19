@@ -38,6 +38,11 @@ class Settings(BaseSettings):
     # from a single env var on any hosting platform without JSON quoting.
     cors_origins: str = "http://localhost:3000"
 
+    # --- Claim extraction ---
+    # Entities per LLM-processing batch (also the embedding batch + commit
+    # granularity in ClaimExtractionService).
+    extraction_batch_size: int = 10
+
     # --- LLM provider ---
     llm_provider: str = "openai"  # openai | anthropic
     openai_api_key: str | None = None

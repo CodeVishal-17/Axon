@@ -57,7 +57,14 @@ class Worker:
             get_settings().job_stale_lock_seconds,
         )
         while not self._stop:
-            worked = self.run_once()
+            try:
+                worked = self.run_once()
+            except Exception:  # noqa: BLE001 — a DB outage must not kill the worker
+                logger.exception(
+                    "poll cycle failed (database down?) — retrying in %.1fs",
+                    self.poll_interval_s,
+                )
+                worked = False
             if not worked and not self._stop:
                 time.sleep(self.poll_interval_s)
         logger.info("worker stopped")

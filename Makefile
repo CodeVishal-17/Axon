@@ -54,6 +54,12 @@ EXTRACTOR ?= auto
 eval-claims:
 	cd $(API_DIR) && python -m axon.evals.claims_eval --extractor $(EXTRACTOR)
 
+## Evaluate the entity linker's deterministic tiers against gold fixtures
+## (DB-free, offline). Prints the linking report + a random sample with
+## per-link explanations.
+eval-linker:
+	cd $(API_DIR) && python -m axon.evals.linker_eval
+
 ## Regenerate frontend API types from the backend's OpenAPI schema.
 ## Run after ANY change to backend routes or response models.
 types:

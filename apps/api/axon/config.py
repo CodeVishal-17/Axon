@@ -43,6 +43,11 @@ class Settings(BaseSettings):
     # granularity in ClaimExtractionService).
     extraction_batch_size: int = 10
 
+    # --- Entity linker ---
+    linker_similarity_threshold: float = 0.60
+    linker_top_k: int = 3
+    linker_max_links_per_claim: int = 3
+
     # --- LLM provider ---
     llm_provider: str = "openai"  # openai | anthropic
     openai_api_key: str | None = None

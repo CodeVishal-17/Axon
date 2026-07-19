@@ -1,0 +1,191 @@
+{
+  "inventory": [
+    "Makefile",
+    "README.md",
+    "docker-compose.yml",
+    "apps/api/.env.example",
+    "apps/api/Dockerfile",
+    "apps/api/alembic.ini",
+    "apps/api/requirements-dev.txt",
+    "apps/api/requirements.txt",
+    "apps/api/axon/adapters/base.py",
+    "apps/api/axon/adapters/github/adapter.py",
+    "apps/api/axon/api/findings.py",
+    "apps/api/axon/api/health.py",
+    "apps/api/axon/api/repos.py",
+    "apps/api/axon/config.py",
+    "apps/api/axon/db/base.py",
+    "apps/api/axon/db/models.py",
+    "apps/api/axon/db/session.py",
+    "apps/api/axon/jobs/handlers/ingest.py",
+    "apps/api/axon/jobs/queue.py",
+    "apps/api/axon/jobs/worker.py",
+    "apps/api/axon/llm/anthropic.py",
+    "apps/api/axon/llm/openai.py",
+    "apps/api/axon/llm/provider.py",
+    "apps/api/axon/main.py",
+    "apps/api/axon/services/claims.py",
+    "apps/api/axon/services/ingestion.py",
+    "apps/api/axon/services/linking.py",
+    "apps/api/scripts/export_openapi.py",
+    "apps/api/scripts/ingest_smoke.py",
+    "apps/web/app/globals.css",
+    "apps/web/app/layout.tsx",
+    "apps/web/app/page.tsx",
+    "apps/web/components/feed/code-block.tsx",
+    "apps/web/components/feed/feed-list.tsx",
+    "apps/web/components/feed/finding-card.tsx",
+    "apps/web/components/feed/severity-badge.tsx",
+    "apps/web/components/layout/empty-state.tsx",
+    "apps/web/components/layout/repo-tabs.tsx",
+    "apps/web/components/layout/site-header.tsx",
+    "apps/web/components/providers.tsx",
+    "apps/web/components/repo/repo-header.tsx",
+    "apps/web/lib/api.ts",
+    "apps/web/lib/format.ts",
+    "apps/web/lib/queries.ts",
+    "apps/web/package.json"
+  ],
+  "claims": [
+    {
+      "id": "path-compose-port",
+      "statement": "The dockerized Postgres container is published on host port 5434.",
+      "mentioned_paths": ["docker-compose.yml"],
+      "expected_paths": ["docker-compose.yml"],
+      "expected_method": "path"
+    },
+    {
+      "id": "path-env-example",
+      "statement": "apps/api/.env.example lists the full set of configuration variables.",
+      "mentioned_paths": ["apps/api/.env.example"],
+      "expected_paths": ["apps/api/.env.example"],
+      "expected_method": "path"
+    },
+    {
+      "id": "path-config-settings",
+      "statement": "All settings are environment variables loaded by pydantic-settings.",
+      "mentioned_paths": ["apps/api/axon/config.py"],
+      "expected_paths": ["apps/api/axon/config.py"],
+      "expected_method": "path"
+    },
+    {
+      "id": "path-suffix-main",
+      "statement": "The FastAPI application factory mounts the health, repos, and findings routers.",
+      "mentioned_paths": ["axon/main.py"],
+      "expected_paths": ["apps/api/axon/main.py"],
+      "expected_method": "path"
+    },
+    {
+      "id": "path-basename-requirements",
+      "statement": "Runtime backend dependencies are pinned in requirements.txt.",
+      "mentioned_paths": ["requirements.txt"],
+      "expected_paths": ["apps/api/requirements.txt"],
+      "expected_method": "path"
+    },
+    {
+      "id": "path-finding-card",
+      "statement": "The Truth Feed renders finding cards with severity badges and evidence blocks.",
+      "mentioned_paths": ["apps/web/components/feed/finding-card.tsx"],
+      "expected_paths": ["apps/web/components/feed/finding-card.tsx"],
+      "expected_method": "path"
+    },
+    {
+      "id": "symbol-queue-file",
+      "statement": "queue.py claims pending jobs using FOR UPDATE SKIP LOCKED row locks.",
+      "mentioned_paths": [],
+      "expected_paths": ["apps/api/axon/jobs/queue.py"],
+      "expected_method": "symbol"
+    },
+    {
+      "id": "symbol-ingestion-service",
+      "statement": "IngestionService prunes file entities absent from the latest repository snapshot.",
+      "mentioned_paths": [],
+      "expected_paths": ["apps/api/axon/services/ingestion.py"],
+      "expected_method": "symbol"
+    },
+    {
+      "id": "symbol-repo-header",
+      "statement": "The RepoHeader component polls repository status until a terminal state is reached.",
+      "mentioned_paths": [],
+      "expected_paths": ["apps/web/components/repo/repo-header.tsx"],
+      "expected_method": "symbol"
+    },
+    {
+      "id": "symbol-finding-card-camel",
+      "statement": "The FindingCard component dims actioned and dismissed findings.",
+      "mentioned_paths": [],
+      "expected_paths": ["apps/web/components/feed/finding-card.tsx"],
+      "expected_method": "symbol"
+    },
+    {
+      "id": "symbol-worker-file",
+      "statement": "worker.py finishes the in-flight job before exiting on SIGTERM.",
+      "mentioned_paths": [],
+      "expected_paths": ["apps/api/axon/jobs/worker.py"],
+      "expected_method": "symbol"
+    },
+    {
+      "id": "symbol-backtick-ingestion",
+      "statement": "`ingestion.py` splits markdown documents into heading-based sections.",
+      "mentioned_paths": [],
+      "expected_paths": ["apps/api/axon/services/ingestion.py"],
+      "expected_method": "symbol"
+    },
+    {
+      "id": "symbol-session-timeout",
+      "statement": "session.py builds the SQLAlchemy engine with a three-second connect timeout.",
+      "mentioned_paths": [],
+      "expected_paths": ["apps/api/axon/db/session.py"],
+      "expected_method": "symbol"
+    },
+    {
+      "id": "symbol-severity-badge",
+      "statement": "The SeverityBadge maps each finding severity to a distinct accent color.",
+      "mentioned_paths": [],
+      "expected_paths": ["apps/web/components/feed/severity-badge.tsx"],
+      "expected_method": "symbol"
+    },
+    {
+      "id": "vague-feed-order",
+      "statement": "Findings are ordered newest first in the feed.",
+      "mentioned_paths": [],
+      "expected_paths": ["apps/api/axon/api/findings.py"],
+      "expected_method": "embedding_or_unresolved"
+    },
+    {
+      "id": "vague-retry-backoff",
+      "statement": "Failed jobs retry with linear backoff between attempts.",
+      "mentioned_paths": [],
+      "expected_paths": ["apps/api/axon/jobs/queue.py"],
+      "expected_method": "embedding_or_unresolved"
+    },
+    {
+      "id": "vague-failed-badge",
+      "statement": "A red badge is shown when repository ingestion fails.",
+      "mentioned_paths": [],
+      "expected_paths": ["apps/web/components/repo/repo-header.tsx"],
+      "expected_method": "embedding_or_unresolved"
+    },
+    {
+      "id": "none-external-rate-limit",
+      "statement": "Unauthenticated GitHub API requests are limited to 60 per hour.",
+      "mentioned_paths": [],
+      "expected_paths": [],
+      "expected_method": "none"
+    },
+    {
+      "id": "none-org-fact",
+      "statement": "The demo presentation is limited to three minutes on stage.",
+      "mentioned_paths": [],
+      "expected_paths": [],
+      "expected_method": "none"
+    },
+    {
+      "id": "none-missing-module",
+      "statement": "Alice owns most of the payments reconciliation module.",
+      "mentioned_paths": [],
+      "expected_paths": [],
+      "expected_method": "none"
+    }
+  ]
+}

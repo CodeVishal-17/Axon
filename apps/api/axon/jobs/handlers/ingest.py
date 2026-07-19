@@ -23,6 +23,7 @@ from axon.adapters.github.adapter import GitHubAdapter
 from axon.db.models import Repo
 from axon.services.claims import ClaimExtractionService, llm_configured
 from axon.services.ingestion import IngestionService
+from axon.services.linking import EntityLinker
 
 logger = logging.getLogger("axon.jobs.ingest")
 
@@ -44,3 +45,7 @@ def run(db: Session, payload: dict[str, Any]) -> None:
             "(set OPENAI_API_KEY — plus ANTHROPIC_API_KEY when LLM_PROVIDER=anthropic)",
             repo.full_name,
         )
+
+    # Linking always runs: the path/symbol tiers are free and cover most
+    # claims; embedding/LLM tiers self-disable without credentials.
+    EntityLinker(db).run(repo)

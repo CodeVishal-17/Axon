@@ -5,7 +5,7 @@
 COMPOSE := docker compose
 API_DIR := apps/api
 
-.PHONY: install db api dev down logs revision migrate test types
+.PHONY: install db api dev down logs revision migrate test types eval-claims
 
 ## Install backend dependencies into the active virtualenv
 install:
@@ -46,6 +46,9 @@ migrate:
 ## Run backend tests
 test:
 	cd $(API_DIR) && pytest -q
+
+eval-claims:
+	cd $(API_DIR) && python -m axon.evals.claims_eval --extractor echo --strict
 
 ## Regenerate frontend API types from the backend's OpenAPI schema.
 ## Run after ANY change to backend routes or response models.

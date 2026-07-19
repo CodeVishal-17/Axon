@@ -1,0 +1,402 @@
+[
+  {
+    "id": "readme-overview",
+    "source": {
+      "kind": "doc_section",
+      "doc_path": "README.md",
+      "path": "README.md#overview",
+      "start_line": 1,
+      "end_line": 5,
+      "text": "A Truth Maintenance System for engineering organizations. Documentation, issues, and ADRs contain beliefs. Code, commits, and pull requests represent reality. Axon continuously verifies beliefs against reality and detects when knowledge becomes false."
+    },
+    "expected_claims": [
+      {
+        "statement": "Axon is a truth maintenance system that validates beliefs in documentation, issues, and ADRs against reality represented by code, commits, and pull requests.",
+        "claim_type": "architecture",
+        "mentioned_paths": ["README.md"],
+        "anchor": {"path": "README.md", "start_line": 1, "end_line": 5}
+      }
+    ],
+    "notes": "Overview claim describing the product's purpose."
+  },
+  {
+    "id": "readme-core-loop",
+    "source": {
+      "kind": "doc_section",
+      "doc_path": "README.md",
+      "path": "README.md#core-loop",
+      "start_line": 7,
+      "end_line": 9,
+      "text": "Core loop: Belief → Verify → Detect Drift → Act"
+    },
+    "expected_claims": [
+      {
+        "statement": "The core loop of Axon is Belief, Verify, Detect Drift, Act.",
+        "claim_type": "process",
+        "mentioned_paths": [],
+        "anchor": {"path": "README.md", "start_line": 7, "end_line": 9}
+      }
+    ],
+    "notes": "Simple process claim describing the product loop."
+  },
+  {
+    "id": "readme-repo-layout",
+    "source": {
+      "kind": "doc_section",
+      "doc_path": "README.md",
+      "path": "README.md#repository-layout",
+      "start_line": 11,
+      "end_line": 15,
+      "text": "apps/api   FastAPI backend (API server + background worker share this code) apps/web   Next.js frontend (scaffolded in T0.3) scripts    Demo seeding / reset utilities"
+    },
+    "expected_claims": [
+      {
+        "statement": "The repository is organized into apps/api for the backend, apps/web for the frontend, and scripts for demo seeding and reset utilities.",
+        "claim_type": "architecture",
+        "mentioned_paths": ["apps/api", "apps/web", "scripts"],
+        "anchor": {"path": "README.md", "start_line": 11, "end_line": 15}
+      }
+    ],
+    "notes": "Architecture claim describing the repository layout."
+  },
+  {
+    "id": "readme-quickstart-docker",
+    "source": {
+      "kind": "doc_section",
+      "doc_path": "README.md",
+      "path": "README.md#quickstart-docker-everything",
+      "start_line": 18,
+      "end_line": 23,
+      "text": "docker compose up --build # API:     http://localhost:8000 # Health:  http://localhost:8000/healthz # OpenAPI: http://localhost:8000/docs"
+    },
+    "expected_claims": [
+      {
+        "statement": "Building the stack with docker compose up --build starts the API on http://localhost:8000 and exposes health and OpenAPI endpoints.",
+        "claim_type": "process",
+        "mentioned_paths": ["README.md"],
+        "anchor": {"path": "README.md", "start_line": 18, "end_line": 23}
+      }
+    ],
+    "notes": "Process claim from quickstart docs."
+  },
+  {
+    "id": "readme-quickstart-host",
+    "source": {
+      "kind": "doc_section",
+      "doc_path": "README.md",
+      "path": "README.md#quickstart-api-on-host-postgres-in-docker",
+      "start_line": 26,
+      "end_line": 34,
+      "text": "docker compose up -d db cd apps/api python -m venv .venv source .venv/bin/activate        # Windows Git Bash: source .venv/Scripts/activate pip install -r requirements.txt -r requirements-dev.txt cp .env.example .env             # then fill in secrets as needed"
+    },
+    "expected_claims": [
+      {
+        "statement": "The host API quickstart uses docker compose up -d db for Postgres, then installs the backend dependencies in apps/api with a local Python virtual environment.",
+        "claim_type": "process",
+        "mentioned_paths": ["apps/api"],
+        "anchor": {"path": "README.md", "start_line": 26, "end_line": 34}
+      }
+    ],
+    "notes": "Process claim for host-based startup."
+  },
+  {
+    "id": "readme-quickstart-host-venv",
+    "source": {
+      "kind": "doc_section",
+      "doc_path": "README.md",
+      "path": "README.md#quickstart-api-on-host-postgres-in-docker",
+      "start_line": 34,
+      "end_line": 39,
+      "text": "uvicorn axon.main:app --reload --port 8000"
+    },
+    "expected_claims": [
+      {
+        "statement": "The backend can be run locally with uvicorn axon.main:app --reload --port 8000.",
+        "claim_type": "process",
+        "mentioned_paths": ["apps/api/axon/main.py"],
+        "anchor": {"path": "README.md", "start_line": 34, "end_line": 39}
+      }
+    ],
+    "notes": "Local development run command."
+  },
+  {
+    "id": "readme-common-commands",
+    "source": {
+      "kind": "doc_section",
+      "doc_path": "README.md",
+      "path": "README.md#common-commands",
+      "start_line": 40,
+      "end_line": 46,
+      "text": "See the [Makefile](Makefile) — `make dev`, `make db`, `make api`, `make test`, `make revision m=\"...\"`, `make migrate`."
+    },
+    "expected_claims": [
+      {
+        "statement": "The repository uses a Makefile to expose developer commands like make dev, make db, make api, make test, make revision and make migrate.",
+        "claim_type": "process",
+        "mentioned_paths": ["Makefile"],
+        "anchor": {"path": "README.md", "start_line": 40, "end_line": 46}
+      }
+    ],
+    "notes": "Claims about developer tooling."
+  },
+  {
+    "id": "readme-configuration",
+    "source": {
+      "kind": "doc_section",
+      "doc_path": "README.md",
+      "path": "README.md#configuration",
+      "start_line": 47,
+      "end_line": 49,
+      "text": "All settings are environment variables loaded by pydantic-settings; see [apps/api/.env.example](apps/api/.env.example) for the full list. Nothing is read from anywhere else."
+    },
+    "expected_claims": [
+      {
+        "statement": "Configuration is supplied via environment variables and .env files; no other config sources are used.",
+        "claim_type": "architecture",
+        "mentioned_paths": ["apps/api/.env.example", "apps/api/axon/config.py"],
+        "anchor": {"path": "README.md", "start_line": 47, "end_line": 49}
+      }
+    ],
+    "notes": "Configuration source claim."
+  },
+  {
+    "id": "healthz-semantics",
+    "source": {
+      "kind": "doc_section",
+      "doc_path": "apps/api/axon/api/health.py",
+      "path": "apps/api/axon/api/health.py#healthz",
+      "start_line": 1,
+      "end_line": 8,
+      "text": "Semantics: /healthz answers 200 whenever the process is alive, and reports database connectivity as data rather than failing the probe. Liveness and dependency-health are different questions — an orchestrator restarting the API in a loop because Postgres blipped would make an outage worse."
+    },
+    "expected_claims": [
+      {
+        "statement": "/healthz reports process liveness and database connectivity as data, instead of failing when the database is unavailable.",
+        "claim_type": "behavior",
+        "mentioned_paths": ["apps/api/axon/api/health.py"],
+        "anchor": {"path": "apps/api/axon/api/health.py", "start_line": 1, "end_line": 8}
+      }
+    ],
+    "notes": "Health endpoint semantics."
+  },
+  {
+    "id": "healthz-check",
+    "source": {
+      "kind": "doc_section",
+      "doc_path": "apps/api/axon/api/health.py",
+      "path": "apps/api/axon/api/health.py#healthz",
+      "start_line": 17,
+      "end_line": 28,
+      "text": "with get_sessionmaker()() as session: session.execute(text(\"SELECT 1\")) except Exception as exc: logger.warning(\"healthz database check failed: %s\", exc) database = \"unavailable\""
+    },
+    "expected_claims": [
+      {
+        "statement": "Healthz performs a lightweight database query and marks the database status unavailable if the query fails.",
+        "claim_type": "process",
+        "mentioned_paths": ["apps/api/axon/api/health.py"],
+        "anchor": {"path": "apps/api/axon/api/health.py", "start_line": 17, "end_line": 28}
+      }
+    ],
+    "notes": "Implementation detail of the health check."
+  },
+  {
+    "id": "repos-router-purpose",
+    "source": {
+      "kind": "doc_section",
+      "doc_path": "apps/api/axon/api/repos.py",
+      "path": "apps/api/axon/api/repos.py#repos-router",
+      "start_line": 1,
+      "end_line": 9,
+      "text": "Repository management endpoints — the frontend's door into the pipeline. Routers stay thin (architecture §2): validate, call services/queue, shape the response. Ingestion NEVER happens in a request handler — POST /repos only enqueues; the worker does the work."
+    },
+    "expected_claims": [
+      {
+        "statement": "The repos router is thin and only validates requests, enqueues ingestion jobs, and shapes responses; ingestion does not happen in request handlers.",
+        "claim_type": "architecture",
+        "mentioned_paths": ["apps/api/axon/api/repos.py"],
+        "anchor": {"path": "apps/api/axon/api/repos.py", "start_line": 1, "end_line": 9}
+      }
+    ],
+    "notes": "API architecture claim."
+  },
+  {
+    "id": "repos-post-enqueue",
+    "source": {
+      "kind": "doc_section",
+      "doc_path": "apps/api/axon/api/repos.py",
+      "path": "apps/api/axon/api/repos.py#repos-router",
+      "start_line": 4,
+      "end_line": 8,
+      "text": "Routers stay thin (architecture §2): validate, call services/queue, shape the response. Ingestion NEVER happens in a request handler — POST /repos only enqueues; the worker does the work."
+    },
+    "expected_claims": [
+      {
+        "statement": "POST /repos only enqueues ingestion work and does not perform ingestion synchronously.",
+        "claim_type": "behavior",
+        "mentioned_paths": ["apps/api/axon/api/repos.py"],
+        "anchor": {"path": "apps/api/axon/api/repos.py", "start_line": 4, "end_line": 8}
+      }
+    ],
+    "notes": "Behavior claim about request handling."
+  },
+  {
+    "id": "repos-token-storage",
+    "source": {
+      "kind": "doc_section",
+      "doc_path": "apps/api/axon/api/repos.py",
+      "path": "apps/api/axon/api/repos.py#repos-router",
+      "start_line": 6,
+      "end_line": 12,
+      "text": "Credential handling: the GitHub token is stored in repo.settings (JSONB, server-side only). Every response model here enumerates its fields explicitly and none includes settings — the token cannot leak through this API, and it is never logged."
+    },
+    "expected_claims": [
+      {
+        "statement": "The GitHub token is persisted in repo.settings on the server and is never included in response models or logs.",
+        "claim_type": "behavior",
+        "mentioned_paths": ["apps/api/axon/api/repos.py"],
+        "anchor": {"path": "apps/api/axon/api/repos.py", "start_line": 6, "end_line": 12}
+      }
+    ],
+    "notes": "Behavior claim about secure token storage."
+  },
+  {
+    "id": "repos-latest-job",
+    "source": {
+      "kind": "doc_section",
+      "doc_path": "apps/api/axon/api/repos.py",
+      "path": "apps/api/axon/api/repos.py#repos-router",
+      "start_line": 58,
+      "end_line": 78,
+      "text": "def _latest_job(db: Session, repo: Repo) -> Job | None: return db.scalars( select(Job) .where(Job.payload[\"repo_id\"].astext == str(repo.id)) .order_by(Job.created_at.desc()) .limit(1) ).first()"
+    },
+    "expected_claims": [
+      {
+        "statement": "Repo details include the latest job by descending created_at order and entity counts by kind.",
+        "claim_type": "architecture",
+        "mentioned_paths": ["apps/api/axon/api/repos.py"],
+        "anchor": {"path": "apps/api/axon/api/repos.py", "start_line": 58, "end_line": 78}
+      }
+    ],
+    "notes": "Claim about repo detail assembly."
+  },
+  {
+    "id": "llm-golden-call-purpose",
+    "source": {
+      "kind": "doc_section",
+      "doc_path": "apps/api/scripts/llm_golden_call.py",
+      "path": "apps/api/scripts/llm_golden_call.py#purpose",
+      "start_line": 1,
+      "end_line": 8,
+      "text": "Live golden-call check for the LLM provider layer (T1.1 acceptance). Runs the SAME structured-output call against every provider whose API key is configured, proving that identical calling code works across providers. Providers without keys are skipped, not failed — this script needs real credentials and is meant for manual/demo-prep runs, not CI."
+    },
+    "expected_claims": [
+      {
+        "statement": "The golden-call script runs the same structured-output request against every configured LLM provider and skips providers without keys instead of failing.",
+        "claim_type": "process",
+        "mentioned_paths": ["apps/api/scripts/llm_golden_call.py"],
+        "anchor": {"path": "apps/api/scripts/llm_golden_call.py", "start_line": 1, "end_line": 8}
+      }
+    ],
+    "notes": "LM provider golden-call behavior claim."
+  },
+  {
+    "id": "llm-golden-call-prompt",
+    "source": {
+      "kind": "doc_section",
+      "doc_path": "apps/api/scripts/llm_golden_call.py",
+      "path": "apps/api/scripts/llm_golden_call.py#prompt",
+      "start_line": 24,
+      "end_line": 32,
+      "text": "PROMPT = (\"Extract the single engineering claim from this documentation snippet.\n\nSnippet (from docs/auth.md): \"Access tokens issued by src/auth/token.ts expire after 24 hours.\"\n\nclaim_type must be one of: behavior, architecture, process, status.\")"
+    },
+    "expected_claims": [
+      {
+        "statement": "The prompt asks the model to extract one engineering claim from a documentation snippet and constrain claim_type to behavior, architecture, process, or status.",
+        "claim_type": "process",
+        "mentioned_paths": ["apps/api/scripts/llm_golden_call.py"],
+        "anchor": {"path": "apps/api/scripts/llm_golden_call.py", "start_line": 24, "end_line": 32}
+      }
+    ],
+    "notes": "Prompt description claim for the LLM harness."
+  },
+  {
+    "id": "config-env-only",
+    "source": {
+      "kind": "doc_section",
+      "doc_path": "apps/api/axon/config.py",
+      "path": "apps/api/axon/config.py#settings",
+      "start_line": 1,
+      "end_line": 12,
+      "text": "Application configuration. Single source of truth for every environment-driven setting. All other modules obtain configuration via get_settings — nothing reads os.environ directly, so the full config surface is auditable here."
+    },
+    "expected_claims": [
+      {
+        "statement": "Configuration is centralized in axon.config, and no module reads os.environ directly.",
+        "claim_type": "architecture",
+        "mentioned_paths": ["apps/api/axon/config.py"],
+        "anchor": {"path": "apps/api/axon/config.py", "start_line": 1, "end_line": 12}
+      }
+    ],
+    "notes": "Configuration architectural claim."
+  },
+  {
+    "id": "config-openai-embeddings",
+    "source": {
+      "kind": "doc_section",
+      "doc_path": "apps/api/axon/config.py",
+      "path": "apps/api/axon/config.py#llm-provider",
+      "start_line": 24,
+      "end_line": 38,
+      "text": "llm_provider: str = \"openai\" openai_api_key: str | None = None anthropic_api_key: str | None = None openai_model: str = \"gpt-5-mini\" anthropic_model: str = \"claude-sonnet-5\" embedding_model: str = \"text-embedding-3-small\" Must produce EMBEDDING_DIM(=1536)-wide vectors (claims.embedding). Embeddings always use OpenAI — Anthropic has no embeddings endpoint, so OPENAI_API_KEY is required even when LLM_PROVIDER=anthropic."
+    },
+    "expected_claims": [
+      {
+        "statement": "Embeddings are always produced by OpenAI, even when the LLM provider is Anthropic, because Anthropic lacks an embeddings endpoint.",
+        "claim_type": "architecture",
+        "mentioned_paths": ["apps/api/axon/config.py"],
+        "anchor": {"path": "apps/api/axon/config.py", "start_line": 24, "end_line": 38}
+      }
+    ],
+    "notes": "Embedding provider claim."
+  },
+  {
+    "id": "config-cors-origins",
+    "source": {
+      "kind": "doc_section",
+      "doc_path": "apps/api/axon/config.py",
+      "path": "apps/api/axon/config.py#cors",
+      "start_line": 38,
+      "end_line": 47,
+      "text": "# --- CORS --- CORS origins: str = \"http://localhost:3000\" Kept as a plain comma-separated string (not list[str]) so it can be set from a single env var on any hosting platform without JSON quoting."
+    },
+    "expected_claims": [
+      {
+        "statement": "CORS origins are kept as a comma-separated string so a single environment variable can configure them without JSON quoting.",
+        "claim_type": "architecture",
+        "mentioned_paths": ["apps/api/axon/config.py"],
+        "anchor": {"path": "apps/api/axon/config.py", "start_line": 38, "end_line": 47}
+      }
+    ],
+    "notes": "CORS configuration claim."
+  },
+  {
+    "id": "config-worker-backoff",
+    "source": {
+      "kind": "doc_section",
+      "doc_path": "apps/api/axon/config.py",
+      "path": "apps/api/axon/config.py#worker",
+      "start_line": 47,
+      "end_line": 62,
+      "text": "worker_poll_interval_s: float = 2.0 job_max_attempts: int = 3 job_retry_backoff_s: float = 15.0 Must exceed the longest legitimate job duration: a running job holds no row lock, so anything running older than this is a dead worker."
+    },
+    "expected_claims": [
+      {
+        "statement": "The worker retry backoff is set to 15 seconds and must exceed the longest legitimate job duration so stale locks can be detected safely.",
+        "claim_type": "process",
+        "mentioned_paths": ["apps/api/axon/config.py"],
+        "anchor": {"path": "apps/api/axon/config.py", "start_line": 47, "end_line": 62}
+      }
+    ],
+    "notes": "Worker retry and stale-lock claim."
+  }
+]

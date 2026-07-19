@@ -91,10 +91,66 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/repos/{repo_id}/findings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Findings
+         * @description Findings for the Truth Feed, newest first. ``status`` defaults to
+         *     open (pass explicitly to see actioned/dismissed history).
+         */
+        get: operations["list_findings_api_repos__repo_id__findings_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /**
+         * AnchorOut
+         * @description Source location of a claim (repo-relative).
+         */
+        AnchorOut: {
+            /** Path */
+            path?: string | null;
+            /** Start Line */
+            start_line?: number | null;
+            /** End Line */
+            end_line?: number | null;
+        };
+        /** ClaimBrief */
+        ClaimBrief: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Statement */
+            statement: string;
+            claim_type: components["schemas"]["ClaimType"];
+            status: components["schemas"]["ClaimStatus"];
+            anchor: components["schemas"]["AnchorOut"];
+        };
+        /**
+         * ClaimStatus
+         * @enum {string}
+         */
+        ClaimStatus: "unchecked" | "verified" | "stale" | "contradicted";
+        /**
+         * ClaimType
+         * @enum {string}
+         */
+        ClaimType: "behavior" | "architecture" | "process" | "status";
         /**
          * EntityKind
          * @enum {string}
@@ -137,6 +193,106 @@ export interface components {
             /** Items */
             items: components["schemas"]["EntityOut"][];
         };
+        /**
+         * EventBrief
+         * @description Provenance: the reality event that triggered this finding.
+         */
+        EventBrief: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            kind: components["schemas"]["EventKind"];
+            /** External Id */
+            external_id: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
+        /**
+         * EventKind
+         * @enum {string}
+         */
+        EventKind: "push" | "pr_merged" | "issue_closed" | "simulated";
+        /**
+         * EvidenceOut
+         * @description Structured evidence: quoted spans plus an optional unified diff.
+         */
+        EvidenceOut: {
+            /**
+             * Quotes
+             * @default []
+             */
+            quotes: components["schemas"]["EvidenceQuote"][];
+            /** Diff */
+            diff?: string | null;
+        };
+        /**
+         * EvidenceQuote
+         * @description One quoted span of evidence, optionally anchored to code.
+         */
+        EvidenceQuote: {
+            /** Text */
+            text: string;
+            /** Path */
+            path?: string | null;
+            /** Start Line */
+            start_line?: number | null;
+            /** Language */
+            language?: string | null;
+        };
+        /**
+         * FindingKind
+         * @enum {string}
+         */
+        FindingKind: "doc_drift" | "stale_issue" | "contradiction" | "silo";
+        /** FindingOut */
+        FindingOut: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            kind: components["schemas"]["FindingKind"];
+            severity: components["schemas"]["FindingSeverity"];
+            status: components["schemas"]["FindingStatus"];
+            /** Explanation */
+            explanation: string;
+            /** Suggested Action */
+            suggested_action: string | null;
+            evidence: components["schemas"]["EvidenceOut"];
+            claim: components["schemas"]["ClaimBrief"];
+            event: components["schemas"]["EventBrief"] | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
+        /** FindingPage */
+        FindingPage: {
+            /** Total */
+            total: number;
+            /** Limit */
+            limit: number;
+            /** Offset */
+            offset: number;
+            /** Items */
+            items: components["schemas"]["FindingOut"][];
+        };
+        /**
+         * FindingSeverity
+         * @enum {string}
+         */
+        FindingSeverity: "low" | "medium" | "high" | "critical";
+        /**
+         * FindingStatus
+         * @enum {string}
+         */
+        FindingStatus: "open" | "actioned" | "dismissed";
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
@@ -377,6 +533,42 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["EntityPage"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_findings_api_repos__repo_id__findings_get: {
+        parameters: {
+            query?: {
+                status?: components["schemas"]["FindingStatus"] | null;
+                severity?: components["schemas"]["FindingSeverity"] | null;
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path: {
+                repo_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FindingPage"];
                 };
             };
             /** @description Validation Error */

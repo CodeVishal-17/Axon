@@ -26,6 +26,13 @@ export type EntityOut = components["schemas"]["EntityOut"];
 export type EntityPage = components["schemas"]["EntityPage"];
 export type EntityKind = EntityOut["kind"];
 export type IngestStatus = RepoDetail["ingest_status"];
+export type FindingOut = components["schemas"]["FindingOut"];
+export type FindingPage = components["schemas"]["FindingPage"];
+export type FindingKind = FindingOut["kind"];
+export type FindingSeverity = FindingOut["severity"];
+export type FindingStatus = FindingOut["status"];
+export type ClaimStatus = FindingOut["claim"]["status"];
+export type EvidenceOut = components["schemas"]["EvidenceOut"];
 
 // --- Client ------------------------------------------------------------
 
@@ -89,6 +96,24 @@ export function connectRepo(body: RepoCreate): Promise<RepoDetail> {
 /** GET /api/repos/{id} — metadata, ingest status, latest job, counts. */
 export function getRepo(repoId: string): Promise<RepoDetail> {
   return apiFetch<RepoDetail>(`/api/repos/${repoId}`);
+}
+
+/** GET /api/repos/{id}/findings — the Truth Feed (open findings first). */
+export function listFindings(
+  repoId: string,
+  params: {
+    status?: FindingStatus;
+    severity?: FindingSeverity;
+    limit?: number;
+    offset?: number;
+  } = {},
+): Promise<FindingPage> {
+  const search = new URLSearchParams();
+  for (const [key, value] of Object.entries(params)) {
+    if (value !== undefined) search.set(key, String(value));
+  }
+  const suffix = search.size ? `?${search}` : "";
+  return apiFetch<FindingPage>(`/api/repos/${repoId}/findings${suffix}`);
 }
 
 /** GET /api/repos/{id}/entities — paginated, filterable entity listing. */

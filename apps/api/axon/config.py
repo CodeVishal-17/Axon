@@ -38,10 +38,17 @@ class Settings(BaseSettings):
     # from a single env var on any hosting platform without JSON quoting.
     cors_origins: str = "http://localhost:3000"
 
-    # --- LLM provider (consumed from T1.1 onward) ---
+    # --- LLM provider ---
     llm_provider: str = "openai"  # openai | anthropic
     openai_api_key: str | None = None
     anthropic_api_key: str | None = None
+    openai_model: str = "gpt-5-mini"
+    # Sonnet per the project decision (DECISIONS.md); override via env.
+    anthropic_model: str = "claude-sonnet-5"
+    # Must produce EMBEDDING_DIM(=1536)-wide vectors (claims.embedding).
+    # Embeddings always use OpenAI — Anthropic has no embeddings endpoint,
+    # so OPENAI_API_KEY is required even when LLM_PROVIDER=anthropic.
+    embedding_model: str = "text-embedding-3-small"
 
     # --- GitHub (consumed from T1.2 / T3.1 onward) ---
     github_token: str | None = None

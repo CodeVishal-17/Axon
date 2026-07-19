@@ -33,6 +33,10 @@ def get_engine() -> Engine:
         pool_size=5,
         max_overflow=10,
         echo=settings.debug,
+        # Fail fast when Postgres is down — without this, Windows TCP retry
+        # behavior turns every connection attempt into a multi-minute hang
+        # (healthz checks, test skip-guards).
+        connect_args={"connect_timeout": 3},
     )
 
 

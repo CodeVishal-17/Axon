@@ -6,3 +6,5 @@ SQLAlchemy>=2.0.30
 psycopg[binary]>=3.2
 alembic>=1.13
 pgvector>=0.3
+openai>=1.55
+anthropic>=0.69

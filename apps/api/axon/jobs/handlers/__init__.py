@@ -22,11 +22,12 @@ class UnknownJobKind(RuntimeError):
 
 
 def get_handler(kind: JobKind) -> Handler:
-    from axon.jobs.handlers import ingest
+    from axon.jobs.handlers import ingest, verify
 
     registry: dict[JobKind, Handler] = {
         JobKind.INGEST: ingest.run,
-        # JobKind.VERIFY (T3.2) and JobKind.GENERATE_FIX (T4.1) land here.
+        JobKind.VERIFY: verify.run,
+        # JobKind.GENERATE_FIX (T4.1) lands here.
     }
     handler = registry.get(kind)
     if handler is None:

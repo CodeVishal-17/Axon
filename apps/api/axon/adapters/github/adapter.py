@@ -28,6 +28,7 @@ from axon.adapters.base import (
     AdapterError,
     CommitInfo,
     KnowledgeDoc,
+    NormalizedEvent,
     RepoFile,
     RepoInfo,
     sha256_text,
@@ -195,6 +196,100 @@ class GitHubAdapter:
                     f["filename"] for f in detail.get("files", []) if "filename" in f
                 ),
             )
+
+    def fetch_pr_files(self, number: int, limit: int = 300) -> tuple[str, ...]:
+        """Changed file paths of a pull request (used by the scoped
+        verification planner — merged-PR webhook payloads carry no file
+        list, so the worker fetches it here, never the request path)."""
+        paths: list[str] = []
+        for item in self._paginate(
+            f"/repos/{self.full_name}/pulls/{number}/files", limit
+        ):
+            if "filename" in item:
+                paths.append(item["filename"])
+        return tuple(paths)
+
+    # --- Event normalization ---------------------------------------------
+
+    @staticmethod
+    def normalize_webhook(
+        event_name: str,
+        delivery_id: str,
+        payload: dict[str, Any],
+        default_branch: str,
+    ) -> NormalizedEvent | None:
+        """GitHub webhook → NormalizedEvent, or None when reality is
+        unchanged. Pure function, no I/O — safe in the request path.
+
+        Semantics (events are REALITY changes):
+        - push to the default branch          → "push" event
+        - pull_request closed with merged     → "pr_merged" event
+        - pull_request opened/synchronize     → None (a proposal; the code
+          on the default branch did not change — verifying against it
+          would be wrong)
+        - issues closed                       → "issue_closed" event
+        - issues edited/reopened              → reingest_only (a BELIEF
+          changed; re-extraction handles it, no Event row)
+        - anything else (discussions, stars…) → None
+        """
+        if event_name == "push":
+            ref = payload.get("ref", "")
+            if ref != f"refs/heads/{default_branch}":
+                return None  # non-default-branch pushes don't change reality
+            changed: set[str] = set()
+            for commit in payload.get("commits", []):
+                for key in ("added", "modified", "removed"):
+                    changed.update(commit.get(key, []))
+            return NormalizedEvent(
+                provider="github",
+                external_id=delivery_id,
+                kind="push",
+                action="push",
+                changed_paths=tuple(sorted(changed)),
+                head_sha=payload.get("after"),
+                title=(payload.get("head_commit") or {}).get("message", "")[:200],
+            )
+
+        if event_name == "pull_request":
+            action = payload.get("action")
+            pr = payload.get("pull_request") or {}
+            if action == "closed" and pr.get("merged"):
+                return NormalizedEvent(
+                    provider="github",
+                    external_id=delivery_id,
+                    kind="pr_merged",
+                    action="merged",
+                    pr_number=pr.get("number"),
+                    head_sha=pr.get("merge_commit_sha"),
+                    title=(pr.get("title") or "")[:200],
+                )
+            return None  # opened/synchronize/unmerged-close: reality unchanged
+
+        if event_name == "issues":
+            action = payload.get("action")
+            issue = payload.get("issue") or {}
+            if action == "closed":
+                return NormalizedEvent(
+                    provider="github",
+                    external_id=delivery_id,
+                    kind="issue_closed",
+                    action="closed",
+                    issue_number=issue.get("number"),
+                    title=(issue.get("title") or "")[:200],
+                )
+            if action in ("edited", "reopened"):
+                return NormalizedEvent(
+                    provider="github",
+                    external_id=delivery_id,
+                    kind="push",  # unused: reingest_only events write no row
+                    action=action,
+                    issue_number=issue.get("number"),
+                    title=(issue.get("title") or "")[:200],
+                    reingest_only=True,
+                )
+            return None
+
+        return None  # discussions, labels, stars, …
 
     # --- BeliefSource ----------------------------------------------------
 

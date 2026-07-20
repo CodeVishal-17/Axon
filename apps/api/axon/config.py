@@ -51,6 +51,9 @@ class Settings(BaseSettings):
     # --- Drift verification ---
     # Max claims verified per at-rest pass (economics knob, architecture §17)
     verify_budget: int = 50
+    # Event-scoped passes are naturally small; this cap is a circuit
+    # breaker for pathological mega-merges, keeping the live path fast.
+    verify_event_budget: int = 25
     verify_max_source_chars: int = 8000
 
     # --- LLM provider ---

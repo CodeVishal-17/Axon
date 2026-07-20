@@ -81,6 +81,32 @@ class CommitInfo:
     files: tuple[str, ...]
 
 
+@dataclass(frozen=True)
+class NormalizedEvent:
+    """A provider-agnostic reality/belief change notification.
+
+    Everything downstream of an adapter (EventService, planner, verify job)
+    consumes ONLY this shape — a future Slack/Notion adapter plugs in by
+    producing it. ``kind`` uses the events table's vocabulary ("push",
+    "pr_merged", "issue_closed", "simulated").
+
+    ``reingest_only`` marks belief-side changes (issue edited/reopened,
+    doc-platform page edits): no Event row is written — the response is an
+    incremental re-ingest, which re-extracts the changed beliefs.
+    """
+
+    provider: str
+    external_id: str  # provider delivery id — the dedup key
+    kind: str
+    action: str
+    changed_paths: tuple[str, ...] = ()
+    pr_number: int | None = None
+    issue_number: int | None = None
+    head_sha: str | None = None
+    title: str = ""
+    reingest_only: bool = False
+
+
 class BeliefSource(Protocol):
     """Enumerate the provider's claim-bearing documents."""
 

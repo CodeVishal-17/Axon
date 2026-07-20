@@ -44,6 +44,7 @@ from axon.db.models import (
     ClaimStatus,
     Entity,
     EntityKind,
+    Event,
     Finding,
     FindingKind,
     FindingSeverity,
@@ -87,6 +88,7 @@ class VerifyReport:
     skipped_no_source: int = 0
     findings_created: int = 0
     findings_updated: int = 0
+    findings_resolved: int = 0
     evidence_guard_downgrades: int = 0
     llm_failures: int = 0
     duration_s: float = 0.0
@@ -99,7 +101,8 @@ class VerifyReport:
             f"verdicts: verified={self.verified} contradicted={self.contradicted} "
             f"insufficient={self.insufficient} "
             f"evidence-guard downgrades={self.evidence_guard_downgrades}\n"
-            f"findings: created={self.findings_created} updated={self.findings_updated}\n"
+            f"findings: created={self.findings_created} updated={self.findings_updated} "
+            f"resolved={self.findings_resolved}\n"
             f"llm failures: {self.llm_failures}   duration: {self.duration_s:.1f}s"
         )
 
@@ -146,11 +149,15 @@ class DriftVerifier:
         fetch_file: FetchFile | None = None,
         budget: int | None = None,
         max_source_chars: int | None = None,
+        event: "Event | None" = None,
     ) -> None:
         settings = get_settings()
         self.db = db
         self._completion = completion_provider
         self._fetch_file = fetch_file
+        # Provenance: event-driven passes stamp findings with the event
+        # that triggered them ("caused by PR #47" in the feed).
+        self._event = event
         self.budget = budget if budget is not None else settings.verify_budget
         self.max_source_chars = (
             max_source_chars
@@ -250,6 +257,7 @@ class DriftVerifier:
             claim.status = ClaimStatus.VERIFIED
             claim.last_verified_at = datetime.now(timezone.utc)
             self.report.verified += 1
+            self._resolve_open_findings(claim)
             return
 
         if verdict.verdict == "INSUFFICIENT_EVIDENCE":
@@ -304,6 +312,20 @@ class DriftVerifier:
             text = text[: self.max_source_chars] + "\n… [truncated]"
         return Source(doc.path, text, base_line=base)
 
+    def _resolve_open_findings(self, claim: Claim) -> None:
+        """Reality re-verified a claim: its open findings are moot. A
+        finding auto-closed by fresh evidence is 'dismissed' — 'actioned'
+        stays reserved for humans/fix PRs."""
+        open_findings = self.db.scalars(
+            select(Finding).where(
+                Finding.claim_id == claim.id,
+                Finding.status == FindingStatus.OPEN,
+            )
+        ).all()
+        for finding in open_findings:
+            finding.status = FindingStatus.DISMISSED
+            self.report.findings_resolved += 1
+
     def _persist_finding(
         self, repo: Repo, claim: Claim, verdict: Verdict, source: Source
     ) -> None:
@@ -350,6 +372,8 @@ class DriftVerifier:
             existing.explanation = verdict.explanation
             existing.evidence = evidence
             existing.suggested_action = suggested
+            if self._event is not None:
+                existing.event_id = self._event.id  # latest trigger wins
             self.report.findings_updated += 1
             return
 
@@ -357,7 +381,9 @@ class DriftVerifier:
             Finding(
                 repo_id=repo.id,
                 claim_id=claim.id,
-                event_id=None,  # at-rest scan; event provenance arrives with T3
+                # provenance: the reality event that triggered this pass
+                # (None for at-rest scans)
+                event_id=self._event.id if self._event is not None else None,
                 kind=kind,
                 severity=severity,
                 explanation=verdict.explanation,

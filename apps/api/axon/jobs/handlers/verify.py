@@ -32,6 +32,7 @@ from axon.services.claims import ClaimExtractionService, llm_configured
 from axon.services.events import ScopedVerificationPlanner, mark_processed
 from axon.services.ingestion import IngestionService
 from axon.services.linking import EntityLinker
+from axon.services.remediation import RemediationService
 from axon.services.verification import DriftVerifier
 
 logger = logging.getLogger("axon.jobs.verify")
@@ -73,6 +74,9 @@ def run(db: Session, payload: dict[str, Any]) -> None:
         DriftVerifier(
             db, event=event, budget=get_settings().verify_event_budget
         ).run(repo, claim_ids=plan.impacted_claim_ids)
+        # Act stage: contradictions found by this pass get grounded
+        # remediation proposals (persisted only — no GitHub writes).
+        RemediationService(db).run(repo)
     elif plan.impacted_claim_ids:
         logger.warning(
             "event %s: %d impacted claims but no LLM key configured — "

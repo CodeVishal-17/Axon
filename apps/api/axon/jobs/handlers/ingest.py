@@ -24,6 +24,7 @@ from axon.db.models import Repo
 from axon.services.claims import ClaimExtractionService, llm_configured
 from axon.services.ingestion import IngestionService
 from axon.services.linking import EntityLinker
+from axon.services.remediation import RemediationService
 from axon.services.verification import DriftVerifier
 
 logger = logging.getLogger("axon.jobs.ingest")
@@ -55,3 +56,6 @@ def run(db: Session, payload: dict[str, Any]) -> None:
         # At-rest verification pass: budgeted, strongest-linked claims
         # first. This is what seeds the Truth Feed after a fresh ingest.
         DriftVerifier(db).run(repo)
+        # Act stage: grounded fix proposals for whatever contradictions
+        # the pass surfaced (persisted only — no GitHub writes).
+        RemediationService(db).run(repo)

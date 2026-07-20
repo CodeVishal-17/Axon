@@ -56,6 +56,10 @@ class Settings(BaseSettings):
     verify_event_budget: int = 25
     verify_max_source_chars: int = 8000
 
+    # --- Remediation ---
+    remediation_budget: int = 10
+    remediation_min_confidence: float = 0.6
+
     # --- LLM provider ---
     llm_provider: str = "openai"  # openai | anthropic
     openai_api_key: str | None = None

@@ -415,7 +415,12 @@ class Finding(TimestampMixin, Base):
     repo: Mapped[Repo] = relationship(back_populates="findings")
     claim: Mapped[Claim] = relationship(back_populates="findings")
     event: Mapped[Event | None] = relationship(back_populates="findings")
-    fix: Mapped[Fix | None] = relationship(back_populates="finding", uselist=False)
+    fix: Mapped[Fix | None] = relationship(
+        back_populates="finding",
+        uselist=False,
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
 
 
 class Fix(TimestampMixin, Base):

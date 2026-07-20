@@ -1,64 +1,61 @@
-import type { FindingOut } from "@/lib/api";
-import { EmptyState } from "@/components/layout/empty-state";
-import { FindingCard } from "@/components/feed/finding-card";
-import { Skeleton } from "@/components/ui/skeleton";
+"use client";
 
-/** One loading placeholder shaped like a finding card. */
-function CardSkeleton() {
-  return (
-    <div className="border-border/60 bg-card/60 flex flex-col gap-3 rounded-lg border border-l-2 border-l-border p-4">
-      <div className="flex items-center gap-2">
-        <Skeleton className="h-5 w-16 rounded-full" />
-        <Skeleton className="h-4 w-20" />
-        <Skeleton className="ml-auto h-4 w-14" />
-      </div>
-      <Skeleton className="h-5 w-4/5" />
-      <Skeleton className="h-4 w-full" />
-      <Skeleton className="h-24 w-full rounded-md" />
-      <div className="flex justify-end gap-2">
-        <Skeleton className="h-8 w-24" />
-        <Skeleton className="h-8 w-16" />
-      </div>
-    </div>
-  );
-}
+import type { FindingAction, FindingOut } from "@/lib/api";
+import { FeaturedFinding } from "@/components/feed/featured-finding";
+import { FindingCard } from "@/components/feed/finding-card";
+import type { ActionState } from "@/components/finding/finding-actions";
+
+const IDLE: ActionState = { kind: "idle" };
 
 /**
- * The Truth Feed. `findings === null` renders the loading state; an empty
- * array renders the (deliberate, styled) empty state.
+ * Presentation only: headline finding on top, the rest beneath. All data,
+ * polling, and mutation state live in the container.
  */
-export function FeedList({ findings }: { findings: FindingOut[] | null }) {
-  if (findings === null) {
-    return (
-      <div className="flex flex-col gap-3" aria-busy>
-        <CardSkeleton />
-        <CardSkeleton />
-        <CardSkeleton />
-      </div>
-    );
-  }
+export function FeedList({
+  findings,
+  actionStates,
+  onOpen,
+  onAction,
+}: {
+  findings: FindingOut[];
+  actionStates: Record<string, ActionState>;
+  onOpen: (findingId: string) => void;
+  onAction: (findingId: string, action: FindingAction) => void;
+}) {
+  const [featured, ...rest] = findings;
+  if (!featured) return null;
 
-  if (findings.length === 0) {
-    return (
-      <EmptyState
-        title="No open findings"
-        description="Axon has nothing to report: every verified claim currently matches the code. New findings appear here the moment reality drifts from the documentation."
-      />
-    );
-  }
-
-  const openCount = findings.filter((f) => f.status === "open").length;
   return (
-    <div className="flex flex-col gap-3">
-      <p className="text-muted-foreground text-xs">
-        {openCount} open finding{openCount === 1 ? "" : "s"}
-        {openCount !== findings.length
-          ? ` · ${findings.length - openCount} resolved`
-          : ""}
-      </p>
-      {findings.map((finding) => (
-        <FindingCard key={finding.id} finding={finding} />
-      ))}
+    <div className="flex flex-col gap-4">
+      <FeaturedFinding
+        finding={featured}
+        state={actionStates[featured.id] ?? IDLE}
+        onOpen={onOpen}
+        onAction={onAction}
+      />
+
+      {rest.length > 0 ? (
+        <>
+          <div className="flex items-center gap-3">
+            <h2 className="text-muted-foreground text-[11px] font-semibold tracking-wide uppercase">
+              More findings
+            </h2>
+            <span className="bg-border/60 h-px flex-1" aria-hidden />
+          </div>
+          <ul className="flex flex-col gap-2.5">
+            {rest.map((finding) => (
+              <li key={finding.id}>
+                <FindingCard
+                  finding={finding}
+                  state={actionStates[finding.id] ?? IDLE}
+                  onOpen={onOpen}
+                  onAction={onAction}
+                />
+              </li>
+            ))}
+          </ul>
+        </>
+      ) : null}
     </div>
   );
 }

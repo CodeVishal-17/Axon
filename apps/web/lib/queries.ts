@@ -10,9 +10,22 @@ import {
   useQuery,
   useQueryClient,
 } from "@tanstack/react-query";
-import { ApiError, connectRepo, getRepo, type RepoDetail } from "@/lib/api";
+import {
+  ApiError,
+  actionFinding,
+  connectRepo,
+  getRepo,
+  listFindings,
+  type FindingAction,
+  type FindingPage,
+  type FindingStatus,
+  type RepoDetail,
+} from "@/lib/api";
 
 const POLL_MS = 1500;
+/** Feed cadence: brisk while work is in flight, calm when settled. */
+const FEED_POLL_ACTIVE_MS = 4000;
+const FEED_POLL_IDLE_MS = 12000;
 
 export function isTerminal(status: RepoDetail["ingest_status"] | undefined) {
   return status === "ready" || status === "failed";
@@ -35,6 +48,75 @@ export function useRepo(repoId: string) {
       if (error instanceof ApiError && error.status === 404) return false;
       return failureCount < 3;
     },
+  });
+}
+
+export const findingsKey = (repoId: string, status: FindingStatus) =>
+  ["findings", repoId, status] as const;
+
+/**
+ * The Truth Feed's data source. Polls automatically — faster while the
+ * repository is still ingesting or a fix job is in flight, slower once
+ * everything has settled. (The backend exposes no WebSocket channel, so
+ * polling is the transport; the cadence switch keeps it cheap.)
+ */
+export function useFindings(
+  repoId: string,
+  status: FindingStatus,
+  { active = false }: { active?: boolean } = {},
+) {
+  return useQuery({
+    queryKey: findingsKey(repoId, status),
+    queryFn: () => listFindings(repoId, { status, limit: 100 }),
+    refetchInterval: active ? FEED_POLL_ACTIVE_MS : FEED_POLL_IDLE_MS,
+    retry: (failureCount, error) => {
+      if (error instanceof ApiError && error.status === 404) return false;
+      return failureCount < 3;
+    },
+  });
+}
+
+/**
+ * Dismiss a finding, or queue its remediation PR.
+ *
+ * Optimistic: dismissals disappear from the open feed immediately and roll
+ * back if the request fails. `generate_fix` cannot be faked — the backend
+ * flips the finding to `actioned` only once the worker has actually opened
+ * the pull request — so the mutation reports the real queued state and the
+ * poll reveals the outcome.
+ */
+export function useFindingAction(repoId: string, status: FindingStatus) {
+  const queryClient = useQueryClient();
+  const key = findingsKey(repoId, status);
+
+  return useMutation({
+    mutationFn: ({
+      findingId,
+      action,
+    }: {
+      findingId: string;
+      action: FindingAction;
+    }) => actionFinding(findingId, action),
+
+    onMutate: async ({ findingId, action }) => {
+      if (action !== "dismiss") return { previous: undefined };
+      await queryClient.cancelQueries({ queryKey: key });
+      const previous = queryClient.getQueryData<FindingPage>(key);
+      if (previous) {
+        queryClient.setQueryData<FindingPage>(key, {
+          ...previous,
+          total: Math.max(0, previous.total - 1),
+          items: previous.items.filter((item) => item.id !== findingId),
+        });
+      }
+      return { previous };
+    },
+
+    onError: (_error, _variables, context) => {
+      if (context?.previous) queryClient.setQueryData(key, context.previous);
+    },
+
+    onSettled: () => queryClient.invalidateQueries({ queryKey: key }),
   });
 }
 

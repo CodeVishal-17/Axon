@@ -1,12 +1,15 @@
+import { memo } from "react";
 import { cn } from "@/lib/utils";
 
 /**
- * Evidence code block: path header, optional line numbers, lightweight
- * syntax highlighting, and a diff mode. Highlighting is a deliberate
- * ~40-line tokenizer (comments/strings/keywords/numbers) rendered as React
- * nodes — no dependency, no dangerouslySetInnerHTML, good enough for
- * evidence excerpts. Long blocks scroll INSIDE the card (max-h + overflow)
- * so the page never scrolls horizontally.
+ * Evidence renderer: path header, line numbers, lightweight syntax
+ * highlighting, and a diff mode. Highlighting is a deliberate ~40-line
+ * tokenizer rendered as React nodes — no dependency, no
+ * dangerouslySetInnerHTML. Long blocks scroll INSIDE their container so the
+ * page never scrolls horizontally.
+ *
+ * Memoized: evidence never changes between polls, so cards re-render
+ * without re-tokenizing.
  */
 
 const KEYWORDS = new Set([
@@ -28,7 +31,7 @@ function highlightLine(line: string, key: number) {
     const [text, comment, string, number, word] = match;
     if (comment) {
       nodes.push(
-        <span key={nodes.length} className="italic text-zinc-500">
+        <span key={nodes.length} className="text-zinc-500 italic">
           {line.slice(index)}
         </span>,
       );
@@ -43,9 +46,7 @@ function highlightLine(line: string, key: number) {
         <span key={nodes.length} className="text-amber-200">{text}</span>,
       );
     } else if (word && KEYWORDS.has(word)) {
-      nodes.push(
-        <span key={nodes.length} className="text-sky-300">{text}</span>,
-      );
+      nodes.push(<span key={nodes.length} className="text-sky-300">{text}</span>);
     } else {
       nodes.push(text);
     }
@@ -62,29 +63,48 @@ function diffLineClass(line: string): string {
   return "text-zinc-400";
 }
 
-export function CodeBlock({
-  code,
-  path,
-  startLine,
-  variant = "code",
-}: {
+export type CodeBlockProps = {
   code: string;
   path?: string | null;
   startLine?: number | null;
   variant?: "code" | "diff";
-}) {
-  const lines = code.split("\n");
+  /** Truncate to N lines with a "+N more" hint — used for card previews. */
+  maxLines?: number;
+  className?: string;
+};
+
+export const CodeBlock = memo(function CodeBlock({
+  code,
+  path,
+  startLine,
+  variant = "code",
+  maxLines,
+  className,
+}: CodeBlockProps) {
+  const allLines = code.split("\n");
+  const truncated = maxLines != null && allLines.length > maxLines;
+  const lines = truncated ? allLines.slice(0, maxLines) : allLines;
   const showNumbers = variant === "code" && startLine != null;
 
   return (
-    <div className="border-border/60 overflow-hidden rounded-md border bg-black/40">
+    <div
+      className={cn(
+        "border-border/60 overflow-hidden rounded-md border bg-black/40",
+        className,
+      )}
+    >
       {path ? (
         <div className="border-border/60 text-muted-foreground flex items-center justify-between border-b px-3 py-1.5 font-mono text-[11px]">
           <span className="truncate">{path}</span>
           {variant === "diff" ? <span className="shrink-0 pl-2">diff</span> : null}
         </div>
       ) : null}
-      <pre className="max-h-56 overflow-auto p-3 font-mono text-xs leading-relaxed">
+      <pre
+        className={cn(
+          "overflow-auto p-3 font-mono text-xs leading-relaxed",
+          maxLines == null && "max-h-56",
+        )}
+      >
         <code>
           {lines.map((line, i) =>
             variant === "diff" ? (
@@ -94,16 +114,21 @@ export function CodeBlock({
             ) : (
               <div key={i} className="flex">
                 {showNumbers ? (
-                  <span className="w-10 shrink-0 select-none pr-3 text-right text-zinc-600">
+                  <span className="w-10 shrink-0 pr-3 text-right text-zinc-600 select-none">
                     {(startLine ?? 1) + i}
                   </span>
                 ) : null}
-                <span className="whitespace-pre">{highlightLine(line, i) }</span>
+                <span className="whitespace-pre">{highlightLine(line, i)}</span>
               </div>
             ),
           )}
+          {truncated ? (
+            <div className="text-muted-foreground pt-1 text-[11px]">
+              +{allLines.length - lines.length} more lines
+            </div>
+          ) : null}
         </code>
       </pre>
     </div>
   );
-}
+});

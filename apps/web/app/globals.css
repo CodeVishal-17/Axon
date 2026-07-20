@@ -136,3 +136,17 @@
 .animate-indeterminate {
   animation: indeterminate 1.2s ease-in-out infinite;
 }
+
+/* Respect the OS motion preference everywhere: no transitions, no
+   animations, no smooth scrolling. Components additionally guard their
+   own spinners with motion-reduce:animate-none. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

@@ -33,6 +33,9 @@ export type FindingSeverity = FindingOut["severity"];
 export type FindingStatus = FindingOut["status"];
 export type ClaimStatus = FindingOut["claim"]["status"];
 export type EvidenceOut = components["schemas"]["EvidenceOut"];
+export type FindingActionRequest = components["schemas"]["FindingActionRequest"];
+export type FindingActionResponse = components["schemas"]["FindingActionResponse"];
+export type FindingAction = FindingActionRequest["action"];
 
 // --- Client ------------------------------------------------------------
 
@@ -114,6 +117,17 @@ export function listFindings(
   }
   const suffix = search.size ? `?${search}` : "";
   return apiFetch<FindingPage>(`/api/repos/${repoId}/findings${suffix}`);
+}
+
+/** POST /api/findings/{id}/action — dismiss, or queue a fix PR. */
+export function actionFinding(
+  findingId: string,
+  action: FindingAction,
+): Promise<FindingActionResponse> {
+  return apiFetch<FindingActionResponse>(`/api/findings/${findingId}/action`, {
+    method: "POST",
+    body: JSON.stringify({ action }),
+  });
 }
 
 /** GET /api/repos/{id}/entities — paginated, filterable entity listing. */

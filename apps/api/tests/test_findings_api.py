@@ -110,3 +110,35 @@ def test_findings_status_filter(client: TestClient, seeded: str) -> None:
 
 def test_findings_404(client: TestClient) -> None:
     assert client.get(f"/api/repos/{uuid.uuid4()}/findings").status_code == 404
+
+def test_findings_action_generate_fix_duplicate(client: TestClient, db: Session, seeded: str) -> None:
+    repo_id = seeded
+    finding = db.scalars(select(models.Finding).where(models.Finding.repo_id == uuid.UUID(repo_id))).first()
+    assert finding is not None
+    
+    # 1. Seed a finding with a fix in GENERATED state
+    fix = models.Fix(
+        finding=finding,
+        status=models.FixStatus.GENERATED,
+        patch="-- patch",
+    )
+    db.add(fix)
+    db.commit()
+
+    # 2. Call the endpoint once
+    resp1 = client.post(f"/api/findings/{finding.id}/action", json={"action": "generate_fix"})
+    assert resp1.status_code == 200
+    assert resp1.json()["status"] == "queued"
+
+    # 3. Call the endpoint a second time (simulating a duplicate click/race)
+    resp2 = client.post(f"/api/findings/{finding.id}/action", json={"action": "generate_fix"})
+    assert resp2.status_code == 409
+    assert "remediation is not actionable" in resp2.json()["detail"]
+
+    # 4. Ensure only ONE job was queued
+    jobs = db.scalars(
+        select(models.Job)
+        .where(models.Job.kind == models.JobKind.GENERATE_FIX)
+        .where(models.Job.payload["fix_id"].astext == str(fix.id))
+    ).all()
+    assert len(jobs) == 1

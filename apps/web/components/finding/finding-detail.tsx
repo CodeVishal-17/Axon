@@ -38,11 +38,11 @@ export function FindingDetail({
     <Sheet open={finding !== null} onOpenChange={onOpenChange}>
       <SheetContent
         side="right"
-        className="data-[side=right]:sm:max-w-2xl gap-0 overflow-y-auto"
+        className="data-[side=right]:sm:max-w-2xl gap-0 overflow-y-auto bg-background"
       >
         {finding ? (
           <>
-            <SheetHeader className="border-border/60 border-b pr-12">
+            <SheetHeader className="border-border/60 border-b bg-popover/80 pr-12 backdrop-blur-sm">
               <div className="flex flex-wrap items-center gap-2">
                 <SeverityBadge severity={finding.severity} />
                 <span className="text-muted-foreground text-xs font-medium">
@@ -51,7 +51,7 @@ export function FindingDetail({
                 <ClaimStatusPill status={finding.claim.status} />
                 <FindingStatusIcon status={finding.status} withLabel />
               </div>
-              <SheetTitle className="pt-2 text-base leading-snug font-medium">
+              <SheetTitle className="pt-3 text-xl leading-snug font-semibold tracking-tight text-balance">
                 {finding.claim.statement}
               </SheetTitle>
               <SheetDescription className="sr-only">
@@ -64,23 +64,28 @@ export function FindingDetail({
               ) : null}
             </SheetHeader>
 
-            <div className="flex flex-col gap-5 p-4">
-              <section className="flex flex-col gap-1.5">
+            <div className="flex flex-col gap-6 p-5 sm:p-6">
+              <section className="flex flex-col gap-2">
                 <h3 className="text-muted-foreground text-[11px] font-semibold tracking-wide uppercase">
                   What changed
                 </h3>
-                <p className="text-sm leading-relaxed">{finding.explanation}</p>
+                <p className="text-[15px] leading-7">{finding.explanation}</p>
               </section>
 
-              <section className="flex flex-col gap-1.5">
-                <h3 className="text-muted-foreground text-[11px] font-semibold tracking-wide uppercase">
-                  Evidence from the code
-                </h3>
+              <section className="flex flex-col gap-2">
+                <div className="flex items-center justify-between gap-3">
+                  <h3 className="text-muted-foreground text-[11px] font-semibold tracking-wide uppercase">
+                    Evidence from the code
+                  </h3>
+                  <span className="text-muted-foreground text-[11px]">
+                    Verified against current source
+                  </span>
+                </div>
                 <Evidence evidence={finding.evidence} />
               </section>
 
               {finding.suggested_action ? (
-                <section className="flex flex-col gap-1.5">
+                <section className="border-border/60 bg-card/40 flex flex-col gap-2 rounded-lg border p-4">
                   <h3 className="text-muted-foreground text-[11px] font-semibold tracking-wide uppercase">
                     Suggested action
                   </h3>
@@ -90,7 +95,7 @@ export function FindingDetail({
                 </section>
               ) : null}
 
-              <section className="border-border/60 flex flex-col gap-3 border-t pt-4">
+              <section className="border-border/60 sticky bottom-0 -mx-5 flex flex-col gap-3 border-t bg-background/95 px-5 pt-4 pb-5 backdrop-blur-sm sm:-mx-6 sm:px-6 sm:pb-6">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <Provenance finding={finding} />
                   <RelativeTime iso={finding.created_at} prefix="detected" />

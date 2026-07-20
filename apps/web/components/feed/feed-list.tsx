@@ -14,11 +14,15 @@ const IDLE: ActionState = { kind: "idle" };
 export function FeedList({
   findings,
   actionStates,
+  arrivalIds,
+  featuredChanged,
   onOpen,
   onAction,
 }: {
   findings: FindingOut[];
   actionStates: Record<string, ActionState>;
+  arrivalIds: Set<string>;
+  featuredChanged: boolean;
   onOpen: (findingId: string) => void;
   onAction: (findingId: string, action: FindingAction) => void;
 }) {
@@ -30,6 +34,8 @@ export function FeedList({
       <FeaturedFinding
         finding={featured}
         state={actionStates[featured.id] ?? IDLE}
+        isNew={arrivalIds.has(featured.id)}
+        wasPromoted={featuredChanged}
         onOpen={onOpen}
         onAction={onAction}
       />
@@ -48,6 +54,7 @@ export function FeedList({
                 <FindingCard
                   finding={finding}
                   state={actionStates[finding.id] ?? IDLE}
+                  isNew={arrivalIds.has(finding.id)}
                   onOpen={onOpen}
                   onAction={onAction}
                 />

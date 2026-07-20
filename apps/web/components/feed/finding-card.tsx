@@ -17,6 +17,7 @@ import { cn } from "@/lib/utils";
 export type FindingCardProps = {
   finding: FindingOut;
   state: ActionState;
+  isNew?: boolean;
   onOpen: (findingId: string) => void;
   onAction: (findingId: string, action: FindingAction) => void;
 };
@@ -35,6 +36,7 @@ export type FindingCardProps = {
 export const FindingCard = memo(function FindingCard({
   finding,
   state,
+  isNew = false,
   onOpen,
   onAction,
 }: FindingCardProps) {
@@ -47,6 +49,7 @@ export const FindingCard = memo(function FindingCard({
       className={cn(
         "group border-border/60 bg-card/40 relative flex flex-col gap-2.5 rounded-lg border border-l-2 p-4",
         "transition-colors duration-150 motion-reduce:transition-none",
+        isNew && "animate-finding-arrival motion-reduce:animate-none",
         "hover:bg-card/70 focus-within:border-border focus-within:bg-card/70",
         SEVERITY_EDGE[finding.severity],
         dimmed && "opacity-55",

@@ -101,7 +101,24 @@ class EventService:
             },
         )
         self.db.add(event)
-        self.db.commit()
+        
+        from sqlalchemy.exc import IntegrityError
+        try:
+            self.db.flush()
+        except IntegrityError:
+            self.db.rollback()
+            existing = self.db.scalars(
+                select(Event).where(
+                    Event.repo_id == repo.id,
+                    Event.external_id == normalized.external_id,
+                )
+            ).first()
+            logger.info(
+                "concurrent duplicate delivery %s for %s — ignored",
+                normalized.external_id, repo.full_name,
+            )
+            return IngestOutcome(status="duplicate", event_id=str(existing.id) if existing else None)
+
         job = queue.enqueue(
             self.db, JobKind.VERIFY, {"event_id": str(event.id)}
         )

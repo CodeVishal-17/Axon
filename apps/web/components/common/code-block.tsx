@@ -89,19 +89,19 @@ export const CodeBlock = memo(function CodeBlock({
   return (
     <div
       className={cn(
-        "border-border/60 overflow-hidden rounded-md border bg-black/40",
+        "border-border/70 overflow-hidden rounded-lg border bg-black/45 shadow-[0_1px_0_rgb(255_255_255/0.03)]",
         className,
       )}
     >
       {path ? (
-        <div className="border-border/60 text-muted-foreground flex items-center justify-between border-b px-3 py-1.5 font-mono text-[11px]">
+        <div className="border-border/60 bg-white/[0.025] text-muted-foreground flex items-center justify-between border-b px-3 py-2 font-mono text-[11px]">
           <span className="truncate">{path}</span>
           {variant === "diff" ? <span className="shrink-0 pl-2">diff</span> : null}
         </div>
       ) : null}
       <pre
         className={cn(
-          "overflow-auto p-3 font-mono text-xs leading-relaxed",
+          "overflow-auto p-3.5 font-mono text-xs leading-relaxed",
           maxLines == null && "max-h-56",
         )}
       >

@@ -27,6 +27,7 @@ from axon.db.models import (
     FindingKind,
     FindingSeverity,
     FindingStatus,
+    Fix,
     FixStatus,
     JobKind,
     Repo,
@@ -211,22 +212,29 @@ def finding_action(
         )
 
     # generate_fix
-    fix = finding.fix
+    # Lock the fix row to prevent concurrent workers from enqueueing duplicate jobs
+    fix = db.scalar(select(Fix).where(Fix.finding_id == finding_id).with_for_update())
     if fix is None:
         raise HTTPException(
             status_code=409,
             detail="no remediation proposal exists for this finding yet",
         )
     if fix.status == FixStatus.PR_OPENED:
+        db.rollback()
         return FindingActionResponse(
             status="already_open", finding_status=finding.status, pr_url=fix.pr_url
         )
     if fix.status != FixStatus.GENERATED:
+        db.rollback()
         raise HTTPException(
             status_code=409,
             detail=f"remediation is not actionable (status: {fix.status.value})",
         )
+    
+    # Commit the PENDING state and the job enqueue atomically
+    fix.status = FixStatus.PENDING
     job = queue.enqueue(db, JobKind.GENERATE_FIX, {"fix_id": str(fix.id)})
+    
     return FindingActionResponse(
         status="queued", finding_status=finding.status, job_id=str(job.id)
     )

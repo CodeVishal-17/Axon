@@ -24,11 +24,15 @@ import { cn } from "@/lib/utils";
 export const FeaturedFinding = memo(function FeaturedFinding({
   finding,
   state,
+  isNew = false,
+  wasPromoted = false,
   onOpen,
   onAction,
 }: {
   finding: FindingOut;
   state: ActionState;
+  isNew?: boolean;
+  wasPromoted?: boolean;
   onOpen: (findingId: string) => void;
   onAction: (findingId: string, action: FindingAction) => void;
 }) {
@@ -39,6 +43,8 @@ export const FeaturedFinding = memo(function FeaturedFinding({
       className={cn(
         "group border-border/60 bg-card/60 relative flex flex-col gap-3 rounded-xl border border-l-[3px] p-5",
         "transition-colors duration-150 motion-reduce:transition-none",
+        (isNew || wasPromoted) &&
+          "animate-featured-arrival motion-reduce:animate-none",
         "hover:bg-card/80 focus-within:border-border",
         SEVERITY_EDGE[finding.severity],
       )}
@@ -52,6 +58,7 @@ export const FeaturedFinding = memo(function FeaturedFinding({
       </button>
 
       <header className="pointer-events-none relative z-10 flex flex-wrap items-center gap-2">
+        {isNew ? <span className="sr-only">New finding received.</span> : null}
         <SeverityBadge severity={finding.severity} />
         <span className="text-muted-foreground text-xs font-medium">
           {KIND_LABELS[finding.kind]}

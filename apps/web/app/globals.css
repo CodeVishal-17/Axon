@@ -137,6 +137,78 @@
   animation: indeterminate 1.2s ease-in-out infinite;
 }
 
+/* Feed arrivals acknowledge real changes returned by a poll. They use only
+   opacity and transform, so they stay cheap even when the feed is long. */
+@keyframes finding-arrival {
+  from { opacity: 0; transform: translateY(-10px); }
+  65% { opacity: 1; transform: translateY(1px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-finding-arrival {
+  animation: finding-arrival 420ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes featured-arrival {
+  from { opacity: 0.35; transform: translateY(-8px) scale(0.992); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+.animate-featured-arrival {
+  animation: featured-arrival 520ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes arrival-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgb(52 211 153 / 0); }
+  45% { box-shadow: 0 0 0 5px rgb(52 211 153 / 0.16); }
+}
+.animate-arrival-pulse {
+  animation: arrival-pulse 700ms ease-out both;
+}
+
+@keyframes feed-state-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.animate-feed-state-in {
+  animation: feed-state-in 180ms ease-out both;
+}
+
+/* Landing page: structural atmosphere, not an illustrative mockup. */
+.landing-grid {
+  background-image:
+    linear-gradient(to right, rgb(255 255 255 / 0.025) 1px, transparent 1px),
+    linear-gradient(to bottom, rgb(255 255 255 / 0.025) 1px, transparent 1px);
+  background-size: 44px 44px;
+}
+.landing-glow {
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(90px);
+  opacity: 0.18;
+  pointer-events: none;
+}
+.landing-glow-one {
+  width: 34rem;
+  height: 22rem;
+  background: rgb(16 185 129);
+  top: -11rem;
+  left: 50%;
+  transform: translateX(-50%);
+}
+.landing-glow-two {
+  width: 18rem;
+  height: 18rem;
+  background: rgb(59 130 246);
+  right: -9rem;
+  bottom: -11rem;
+  opacity: 0.1;
+}
+@keyframes landing-rise {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-landing-rise { animation: landing-rise 600ms cubic-bezier(0.22, 1, 0.36, 1) both; }
+.animate-landing-rise-delay-one { animation-delay: 100ms; }
+
 /* Respect the OS motion preference everywhere: no transitions, no
    animations, no smooth scrolling. Components additionally guard their
    own spinners with motion-reduce:animate-none. */

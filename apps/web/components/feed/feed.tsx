@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ApiError,
   type FindingAction,
@@ -14,6 +14,7 @@ import { EmptyState } from "@/components/layout/empty-state";
 import { FeedList } from "@/components/feed/feed-list";
 import { FeedSkeleton } from "@/components/feed/feed-skeleton";
 import { FeedToolbar } from "@/components/feed/feed-toolbar";
+import { useFindingArrivals } from "@/components/feed/use-finding-arrivals";
 import { FindingDetail } from "@/components/finding/finding-detail";
 import type { ActionState } from "@/components/finding/finding-actions";
 
@@ -96,10 +97,25 @@ export function Feed({ repoId }: { repoId: string }) {
     );
   }, [query.data]);
 
-  const selected: FindingOut | null = useMemo(
+  const [cachedFinding, setCachedFinding] = useState<FindingOut | null>(null);
+
+  const activeFinding = useMemo(
     () => findings.find((finding) => finding.id === selectedId) ?? null,
     [findings, selectedId],
   );
+
+  // Keep a cached copy of the selected finding so the panel doesn't slam shut
+  // when the finding is actioned and disappears from the open feed.
+  useEffect(() => {
+    if (activeFinding) setCachedFinding(activeFinding);
+  }, [activeFinding]);
+
+  const selected: FindingOut | null =
+    activeFinding ?? (selectedId === cachedFinding?.id ? cachedFinding : null);
+  const { arrivalIds, featuredChanged } = useFindingArrivals(findings, {
+    enabled: query.isSuccess,
+    scopeKey: status,
+  });
 
   const handleAction = useCallback(
     (findingId: string, action: FindingAction) => {
@@ -163,6 +179,8 @@ export function Feed({ repoId }: { repoId: string }) {
       <FeedList
         findings={findings}
         actionStates={actionStates}
+        arrivalIds={arrivalIds}
+        featuredChanged={featuredChanged}
         onOpen={handleOpen}
         onAction={handleAction}
       />
@@ -177,8 +195,9 @@ export function Feed({ repoId }: { repoId: string }) {
         total={query.data?.total ?? null}
         isFetching={query.isFetching}
         isLive={!query.error}
+        hasNewData={arrivalIds.size > 0 || featuredChanged}
       />
-      {body()}
+      <div className="animate-feed-state-in motion-reduce:animate-none">{body()}</div>
       <FindingDetail
         finding={selected}
         state={selected ? (actionStates[selected.id] ?? IDLE) : IDLE}

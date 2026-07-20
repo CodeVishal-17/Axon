@@ -363,6 +363,7 @@ class Event(TimestampMixin, Base):
 
     __tablename__ = "events"
     __table_args__ = (
+        UniqueConstraint("repo_id", "external_id", name="uq_events_repo_external"),
         Index("ix_events_repo_kind", "repo_id", "kind"),
     )
 

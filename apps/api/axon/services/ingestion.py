@@ -211,7 +211,12 @@ class IngestionService:
         return (entity.kind, entity.path or entity.external_id or entity.name)
 
     def _load_existing(self, repo: Repo) -> None:
-        rows = self.db.scalars(select(Entity).where(Entity.repo_id == repo.id)).all()
+        from sqlalchemy.orm import load_only
+        rows = self.db.scalars(
+            select(Entity)
+            .where(Entity.repo_id == repo.id)
+            .options(load_only(Entity.kind, Entity.path, Entity.external_id, Entity.name, Entity.content_hash))
+        ).all()
         self._existing = {self._key(e): e for e in rows}
 
     def _upsert(

@@ -19,12 +19,14 @@ export function FeedToolbar({
   total,
   isFetching,
   isLive,
+  hasNewData = false,
 }: {
   status: FindingStatus;
   onStatusChange: (status: FindingStatus) => void;
   total: number | null;
   isFetching: boolean;
   isLive: boolean;
+  hasNewData?: boolean;
 }) {
   return (
     <div className="flex flex-wrap items-center gap-3">
@@ -65,7 +67,9 @@ export function FeedToolbar({
         <span
           className={cn(
             "inline-block size-1.5 rounded-full",
-            isFetching
+            hasNewData
+              ? "bg-emerald-300 animate-arrival-pulse motion-reduce:animate-none"
+              : isFetching
               ? "bg-emerald-400 animate-pulse motion-reduce:animate-none"
               : isLive
                 ? "bg-emerald-400/50"
@@ -73,7 +77,7 @@ export function FeedToolbar({
           )}
           aria-hidden
         />
-        {isFetching ? "Syncing…" : isLive ? "Live" : "Idle"}
+        {isFetching ? "Syncing…" : hasNewData ? "Updated" : isLive ? "Live" : "Idle"}
       </span>
     </div>
   );

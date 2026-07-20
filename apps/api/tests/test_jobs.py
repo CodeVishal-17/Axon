@@ -219,6 +219,8 @@ def test_worker_records_handler_failure(db: Session, monkeypatch) -> None:
     assert fresh.attempts == 1
 
 
-def test_unknown_job_kind_raises() -> None:
-    with pytest.raises(UnknownJobKind):
-        get_handler(models.JobKind.GENERATE_FIX)  # no handler until T4.1
+def test_every_job_kind_has_a_handler() -> None:
+    """The registry is complete as of T4.1 — a new JobKind without a
+    handler should fail here before it fails in production."""
+    for kind in models.JobKind:
+        assert callable(get_handler(kind))

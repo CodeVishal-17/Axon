@@ -1,4 +1,4 @@
-"""Findings endpoints — the Truth Feed's data source.
+"""Findings endpoints — the Truth Feed's data source and action surface.
 
 Added with T1.5 as the schema contract the frontend builds against
 (fixtures must match these generated types exactly); the drift engine
@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
+from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, ConfigDict
@@ -26,9 +27,12 @@ from axon.db.models import (
     FindingKind,
     FindingSeverity,
     FindingStatus,
+    FixStatus,
+    JobKind,
     Repo,
 )
 from axon.db.session import get_db
+from axon.jobs import queue
 
 router = APIRouter(prefix="/api", tags=["findings"])
 
@@ -170,4 +174,59 @@ def list_findings(
     return FindingPage(
         total=total or 0, limit=limit, offset=offset,
         items=[_to_out(f) for f in rows],
+    )
+
+
+# --- Actions ---------------------------------------------------------------
+
+
+class FindingActionRequest(BaseModel):
+    action: Literal["generate_fix", "dismiss"]
+
+
+class FindingActionResponse(BaseModel):
+    status: str  # queued | dismissed | already_open
+    finding_status: FindingStatus
+    job_id: str | None = None
+    pr_url: str | None = None
+
+
+@router.post("/findings/{finding_id}/action", response_model=FindingActionResponse)
+def finding_action(
+    finding_id: uuid.UUID,
+    body: FindingActionRequest,
+    db: Session = Depends(get_db),
+) -> FindingActionResponse:
+    """Human-in-the-loop actions on a finding (architecture §12: writes to
+    customer repos happen only behind an explicit click)."""
+    finding = db.get(Finding, finding_id)
+    if finding is None:
+        raise HTTPException(status_code=404, detail="finding not found")
+
+    if body.action == "dismiss":
+        finding.status = FindingStatus.DISMISSED
+        db.commit()
+        return FindingActionResponse(
+            status="dismissed", finding_status=finding.status
+        )
+
+    # generate_fix
+    fix = finding.fix
+    if fix is None:
+        raise HTTPException(
+            status_code=409,
+            detail="no remediation proposal exists for this finding yet",
+        )
+    if fix.status == FixStatus.PR_OPENED:
+        return FindingActionResponse(
+            status="already_open", finding_status=finding.status, pr_url=fix.pr_url
+        )
+    if fix.status != FixStatus.GENERATED:
+        raise HTTPException(
+            status_code=409,
+            detail=f"remediation is not actionable (status: {fix.status.value})",
+        )
+    job = queue.enqueue(db, JobKind.GENERATE_FIX, {"fix_id": str(fix.id)})
+    return FindingActionResponse(
+        status="queued", finding_status=finding.status, job_id=str(job.id)
     )

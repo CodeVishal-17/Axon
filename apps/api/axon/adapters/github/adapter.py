@@ -197,6 +197,104 @@ class GitHubAdapter:
                 ),
             )
 
+    # --- Write side (PR generation) --------------------------------------
+    # Five primitives; a future GitLab adapter implements the same five and
+    # GitHubPRService is unchanged.
+
+    def _post(self, path: str, json: dict[str, Any]) -> httpx.Response:
+        response = self._client.post(f"{_API}{path}", json=json)
+        if response.is_error:
+            raise AdapterError(
+                f"GitHub API error {response.status_code} on {path}: "
+                f"{response.text[:300]}"
+            )
+        return response
+
+    def get_branch_head(self, branch: str) -> str:
+        ref = self._get(f"/repos/{self.full_name}/git/ref/heads/{branch}").json()
+        return ref["object"]["sha"]
+
+    def branch_exists(self, branch: str) -> bool:
+        response = self._client.get(
+            f"{_API}/repos/{self.full_name}/git/ref/heads/{branch}"
+        )
+        if response.status_code == 404:
+            return False
+        if response.is_error:
+            raise AdapterError(
+                f"GitHub API error {response.status_code} checking branch {branch}"
+            )
+        return True
+
+    def create_branch(self, branch: str, from_sha: str) -> None:
+        self._post(
+            f"/repos/{self.full_name}/git/refs",
+            {"ref": f"refs/heads/{branch}", "sha": from_sha},
+        )
+
+    def fetch_file_with_sha(
+        self, path: str, ref: str | None = None
+    ) -> tuple[bytes, str] | None:
+        """(content, blob sha) at ref, or None when the file is missing.
+        The sha is the contents-API write precondition."""
+        import base64  # noqa: PLC0415
+
+        params = {"ref": ref} if ref else {}
+        response = self._client.get(
+            f"{_API}/repos/{self.full_name}/contents/{path}", params=params
+        )
+        if response.status_code == 404:
+            return None
+        if response.is_error:
+            raise AdapterError(
+                f"GitHub API error {response.status_code} fetching {path}"
+            )
+        payload = response.json()
+        if payload.get("type") != "file" or payload.get("encoding") != "base64":
+            return None
+        return base64.b64decode(payload["content"]), payload["sha"]
+
+    def put_file(
+        self, path: str, content: bytes, message: str, branch: str, sha: str
+    ) -> None:
+        """One commit updating one file on a branch (contents API)."""
+        import base64  # noqa: PLC0415
+
+        self._client.put(
+            f"{_API}/repos/{self.full_name}/contents/{path}",
+            json={
+                "message": message,
+                "content": base64.b64encode(content).decode(),
+                "branch": branch,
+                "sha": sha,
+            },
+        ).raise_for_status()
+
+    def find_pull(self, head_branch: str) -> str | None:
+        owner = self.full_name.split("/")[0]
+        pulls = self._get(
+            f"/repos/{self.full_name}/pulls",
+            head=f"{owner}:{head_branch}",
+            state="open",
+        ).json()
+        return pulls[0]["html_url"] if pulls else None
+
+    def create_pull(self, title: str, body: str, head: str, base: str) -> str:
+        response = self._client.post(
+            f"{_API}/repos/{self.full_name}/pulls",
+            json={"title": title, "body": body, "head": head, "base": base},
+        )
+        if response.status_code == 422 and "already exist" in response.text:
+            existing = self.find_pull(head)
+            if existing:
+                return existing
+        if response.is_error:
+            raise AdapterError(
+                f"GitHub API error {response.status_code} creating PR: "
+                f"{response.text[:300]}"
+            )
+        return response.json()["html_url"]
+
     def fetch_pr_files(self, number: int, limit: int = 300) -> tuple[str, ...]:
         """Changed file paths of a pull request (used by the scoped
         verification planner — merged-PR webhook payloads carry no file

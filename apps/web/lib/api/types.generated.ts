@@ -112,6 +112,61 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/findings/{finding_id}/action": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Finding Action
+         * @description Human-in-the-loop actions on a finding (architecture §12: writes to
+         *     customer repos happen only behind an explicit click).
+         */
+        post: operations["finding_action_api_findings__finding_id__action_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/webhooks/github": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Github Webhook */
+        post: operations["github_webhook_api_webhooks_github_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/repos/{repo_id}/simulate-event": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Simulate Event */
+        post: operations["simulate_event_api_repos__repo_id__simulate_event_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -193,6 +248,15 @@ export interface components {
             /** Items */
             items: components["schemas"]["EntityOut"][];
         };
+        /** EventAccepted */
+        EventAccepted: {
+            /** Status */
+            status: string;
+            /** Event Id */
+            event_id?: string | null;
+            /** Job Id */
+            job_id?: string | null;
+        };
         /**
          * EventBrief
          * @description Provenance: the reality event that triggered this finding.
@@ -243,6 +307,24 @@ export interface components {
             start_line?: number | null;
             /** Language */
             language?: string | null;
+        };
+        /** FindingActionRequest */
+        FindingActionRequest: {
+            /**
+             * Action
+             * @enum {string}
+             */
+            action: "generate_fix" | "dismiss";
+        };
+        /** FindingActionResponse */
+        FindingActionResponse: {
+            /** Status */
+            status: string;
+            finding_status: components["schemas"]["FindingStatus"];
+            /** Job Id */
+            job_id?: string | null;
+            /** Pr Url */
+            pr_url?: string | null;
         };
         /**
          * FindingKind
@@ -400,6 +482,26 @@ export interface components {
                 [key: string]: number;
             };
             latest_job: components["schemas"]["JobOut"] | null;
+        };
+        /**
+         * SimulateRequest
+         * @description A canned GitHub-style webhook: same event names, same payload
+         *     shapes, run through the identical normalization + pipeline.
+         */
+        SimulateRequest: {
+            /**
+             * Event
+             * @example push
+             * @example pull_request
+             * @example issues
+             */
+            event: string;
+            /** Payload */
+            payload: {
+                [key: string]: unknown;
+            };
+            /** External Id */
+            external_id?: string | null;
         };
         /** ValidationError */
         ValidationError: {
@@ -569,6 +671,111 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["FindingPage"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    finding_action_api_findings__finding_id__action_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                finding_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FindingActionRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FindingActionResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    github_webhook_api_webhooks_github_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-github-event"?: string;
+                "x-github-delivery"?: string;
+                "x-hub-signature-256"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EventAccepted"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    simulate_event_api_repos__repo_id__simulate_event_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-axon-simulate-secret"?: string | null;
+            };
+            path: {
+                repo_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SimulateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EventAccepted"];
                 };
             };
             /** @description Validation Error */

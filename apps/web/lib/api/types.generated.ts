@@ -353,6 +353,8 @@ export interface components {
              * Format: date-time
              */
             created_at: string;
+            /** PR URL */
+            pr_url?: string | null;
         };
         /** FindingPage */
         FindingPage: {

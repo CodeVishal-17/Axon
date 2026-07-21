@@ -1,10 +1,8 @@
 # Axon
 
-**A Truth Maintenance System for engineering organizations.**
+**An AI-powered documentation linter backed by a Truth Maintenance System.**
 
-Documentation, issues, and ADRs contain *beliefs*. Code, commits, and pull
-requests represent *reality*. Axon continuously verifies beliefs against
-reality and detects when knowledge becomes false.
+Axon continuously verifies your repository's documentation against its source code, surfacing drift in a live feed and generating pull requests to fix it. Documentation contains *beliefs*. Code represents *reality*. Axon detects when knowledge becomes false.
 
 Core loop: **Belief → Verify → Detect Drift → Act**
 
@@ -19,6 +17,9 @@ scripts    Demo seeding / reset utilities
 ## Quickstart (Docker, everything)
 
 ```bash
+cp apps/api/.env.example apps/api/.env
+# Open apps/api/.env and add your OPENAI_API_KEY (and ANTHROPIC_API_KEY if desired)
+
 docker compose up --build
 # API:     http://localhost:8000
 # Health:  http://localhost:8000/healthz

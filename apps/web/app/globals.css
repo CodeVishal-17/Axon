@@ -172,42 +172,96 @@
   animation: feed-state-in 180ms ease-out both;
 }
 
-/* Landing page: structural atmosphere, not an illustrative mockup. */
-.landing-grid {
-  background-image:
-    linear-gradient(to right, rgb(255 255 255 / 0.025) 1px, transparent 1px),
-    linear-gradient(to bottom, rgb(255 255 255 / 0.025) 1px, transparent 1px);
-  background-size: 44px 44px;
+/* Landing page aesthetics: Modern, dynamic, glassmorphic */
+.landing-page-bg {
+  background: radial-gradient(circle at 50% -20%, rgba(16, 185, 129, 0.15), rgba(0, 0, 0, 1) 60%);
+  background-color: #030712;
 }
-.landing-glow {
+
+.landing-grid {
+  background-size: 60px 60px;
+  background-image: 
+    linear-gradient(to right, rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+  mask-image: linear-gradient(to bottom, black 40%, transparent 100%);
+  -webkit-mask-image: linear-gradient(to bottom, black 40%, transparent 100%);
   position: absolute;
-  border-radius: 9999px;
-  filter: blur(90px);
-  opacity: 0.18;
+  inset: 0;
   pointer-events: none;
 }
+
+.glass-panel {
+  background: rgba(15, 23, 42, 0.4);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+}
+
+.glass-card {
+  background: rgba(30, 41, 59, 0.3);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  transition: all 0.3s ease;
+}
+
+.glass-card:hover {
+  background: rgba(30, 41, 59, 0.5);
+  border-color: rgba(52, 211, 153, 0.3);
+  transform: translateY(-4px);
+  box-shadow: 0 10px 40px -10px rgba(52, 211, 153, 0.15);
+}
+
+.text-gradient {
+  background: linear-gradient(135deg, #a7f3d0 0%, #34d399 50%, #3b82f6 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.landing-glow {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(120px);
+  opacity: 0.4;
+  pointer-events: none;
+  mix-blend-mode: screen;
+}
+
 .landing-glow-one {
-  width: 34rem;
-  height: 22rem;
-  background: rgb(16 185 129);
-  top: -11rem;
-  left: 50%;
-  transform: translateX(-50%);
+  width: 40rem;
+  height: 40rem;
+  background: radial-gradient(circle, rgba(16,185,129,0.3) 0%, transparent 70%);
+  top: -20rem;
+  left: 0;
 }
+
 .landing-glow-two {
-  width: 18rem;
-  height: 18rem;
-  background: rgb(59 130 246);
-  right: -9rem;
-  bottom: -11rem;
-  opacity: 0.1;
+  width: 45rem;
+  height: 45rem;
+  background: radial-gradient(circle, rgba(59,130,246,0.25) 0%, transparent 70%);
+  right: -10rem;
+  bottom: -20rem;
 }
+
+@keyframes float {
+  0% { transform: translateY(0px); }
+  50% { transform: translateY(-10px); }
+  100% { transform: translateY(0px); }
+}
+.animate-float {
+  animation: float 6s ease-in-out infinite;
+}
+
 @keyframes landing-rise {
-  from { opacity: 0; transform: translateY(12px); }
-  to { opacity: 1; transform: translateY(0); }
+  from { opacity: 0; transform: translateY(24px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
 }
-.animate-landing-rise { animation: landing-rise 600ms cubic-bezier(0.22, 1, 0.36, 1) both; }
-.animate-landing-rise-delay-one { animation-delay: 100ms; }
+.animate-landing-rise { animation: landing-rise 800ms cubic-bezier(0.16, 1, 0.3, 1) both; }
+.animate-landing-rise-delay-1 { animation-delay: 150ms; }
+.animate-landing-rise-delay-2 { animation-delay: 300ms; }
+.animate-landing-rise-delay-3 { animation-delay: 450ms; }
 
 /* Respect the OS motion preference everywhere: no transitions, no
    animations, no smooth scrolling. Components additionally guard their

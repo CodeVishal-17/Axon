@@ -8,7 +8,7 @@ import {
   type FindingSeverity,
   type FindingStatus,
 } from "@/lib/api";
-import { useFindingAction, useFindings } from "@/lib/queries";
+import { useFindingAction, useFindings, useRepo } from "@/lib/queries";
 import { ErrorState } from "@/components/common/error-state";
 import { EmptyState } from "@/components/layout/empty-state";
 import { FeedList } from "@/components/feed/feed-list";
@@ -29,9 +29,9 @@ const IDLE: ActionState = { kind: "idle" };
 
 const EMPTY_COPY: Record<FindingStatus, { title: string; description: string }> = {
   open: {
-    title: "No open findings",
+    title: "Knowledge is aligned with reality.",
     description:
-      "Every verified claim currently matches the code. New findings appear here the moment reality drifts from the documentation.",
+      "Every verified claim currently matches the source. New findings appear here the moment reality drifts from the documentation.",
   },
   actioned: {
     title: "No fix pull requests yet",
@@ -84,7 +84,10 @@ export function Feed({ repoId }: { repoId: string }) {
     [actionStates],
   );
 
-  const query = useFindings(repoId, status, { active: hasWorkInFlight });
+  const repoQuery = useRepo(repoId);
+  const query = useFindings(repoId, status, { 
+    active: hasWorkInFlight || repoQuery.data?.ingest_status === "ingesting" || repoQuery.data?.ingest_status === "pending" 
+  });
   const mutation = useFindingAction(repoId, status);
 
   // Headline first: worst severity, then most recent.
@@ -173,6 +176,24 @@ export function Feed({ repoId }: { repoId: string }) {
       );
     }
     if (findings.length === 0) {
+      const ingestStatus = repoQuery.data?.ingest_status;
+      if (ingestStatus === "pending" || ingestStatus === "ingesting") {
+        return (
+          <EmptyState
+            title="Building knowledge graph..."
+            description="Extracting beliefs and verifying reality. This usually takes 30-90 seconds."
+          />
+        );
+      }
+      if (ingestStatus === "failed") {
+        return (
+          <ErrorState
+            title="Analysis failed"
+            description="The background worker failed to process this repository. Please try reconnecting."
+            onRetry={() => repoQuery.refetch()}
+          />
+        );
+      }
       return <EmptyState {...EMPTY_COPY[status]} />;
     }
     return (

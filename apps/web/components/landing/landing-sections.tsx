@@ -35,18 +35,18 @@ export function LandingSections() {
         </PageContainer>
       </section>
 
-      <section className="border-b border-border/60 bg-card/[0.16]">
-        <PageContainer className="py-20 sm:py-28">
+      <section className="border-b border-border/10 landing-page-bg relative isolate">
+        <PageContainer className="py-20 sm:py-28 relative z-10">
           <div className="max-w-xl">
             <SectionEyebrow>Why Axon</SectionEyebrow>
-            <h2 className="mt-4 text-3xl font-semibold tracking-tight text-balance sm:text-4xl">Keep the knowledge that guides your team as current as the code.</h2>
+            <h2 className="mt-4 text-3xl font-semibold tracking-tight text-balance sm:text-4xl text-white">Keep the knowledge that guides your team as current as the code.</h2>
           </div>
           <div className="mt-12 grid gap-4 md:grid-cols-3">
             {benefits.map(({ icon: Icon, title, body }) => (
-              <article key={title} className="border-border/70 bg-background/50 group rounded-xl border p-6 transition-colors hover:border-emerald-400/30 hover:bg-card motion-reduce:transition-none">
-                <span className="border-border/60 bg-card text-emerald-300 inline-flex size-10 items-center justify-center rounded-lg border"><Icon className="size-5" aria-hidden /></span>
-                <h3 className="mt-5 text-base font-semibold tracking-tight">{title}</h3>
-                <p className="text-muted-foreground mt-2 text-sm leading-6">{body}</p>
+              <article key={title} className="glass-card rounded-2xl p-6 group">
+                <span className="bg-emerald-500/10 text-emerald-400 inline-flex size-12 items-center justify-center rounded-xl shadow-[0_0_15px_rgba(52,211,153,0.15)] group-hover:shadow-[0_0_20px_rgba(52,211,153,0.3)] transition-all"><Icon className="size-6" aria-hidden /></span>
+                <h3 className="mt-6 text-lg font-medium tracking-tight text-white">{title}</h3>
+                <p className="text-slate-400 mt-2 text-sm leading-6">{body}</p>
               </article>
             ))}
           </div>

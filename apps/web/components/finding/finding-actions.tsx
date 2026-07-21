@@ -30,7 +30,7 @@ export function FindingActions({
 }) {
   const isDismissed = finding.status === "dismissed";
   const prOpened = finding.status === "actioned" || state.kind === "opened";
-  const prUrl = state.kind === "opened" ? state.prUrl : null;
+  const prUrl = (state.kind === "opened" ? state.prUrl : finding.pr_url) || null;
   const busy = state.kind === "pending";
 
   if (prOpened) {
@@ -38,7 +38,7 @@ export function FindingActions({
       <div className="flex items-center gap-2">
         <span className="inline-flex items-center gap-1.5 text-xs text-emerald-400">
           <GitPullRequest className="size-3.5" aria-hidden />
-          Fix PR opened
+          Fix proposed via GitHub Pull Request.
         </span>
         {prUrl ? (
           <Button
@@ -78,7 +78,7 @@ export function FindingActions({
         ) : (
           <GitPullRequest className="size-3.5" aria-hidden />
         )}
-        Draft fix PR
+        Propose Fix
       </Button>
       <Button
         size={size}

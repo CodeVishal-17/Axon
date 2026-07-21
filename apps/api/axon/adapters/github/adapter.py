@@ -26,6 +26,9 @@ import httpx
 
 from axon.adapters.base import (
     AdapterError,
+    AuthenticationError,
+    RateLimitError,
+    RepositoryNotFoundError,
     CommitInfo,
     KnowledgeDoc,
     NormalizedEvent,
@@ -71,31 +74,48 @@ class GitHubAdapter:
             headers["Authorization"] = f"Bearer {resolved_token}"
         # `client` injection exists for tests (no network).
         self._client = client or httpx.Client(
-            headers=headers, timeout=60.0, follow_redirects=True
+            headers=headers, 
+            timeout=httpx.Timeout(60.0, connect=10.0), 
+            follow_redirects=True
         )
 
     # --- internals -------------------------------------------------------
 
+    def _request_with_retry(self, method: str, path: str, allow_statuses: tuple[int, ...] = (), **kwargs: Any) -> httpx.Response:
+        import time
+        max_attempts = 3
+        for attempt in range(max_attempts):
+            response = self._client.request(method, f"{_API}{path}", **kwargs)
+            if response.status_code in (502, 503, 504) and attempt < max_attempts - 1:
+                time.sleep(2 ** attempt)
+                continue
+            
+            if response.status_code in allow_statuses:
+                return response
+
+            if response.status_code == 401:
+                raise AuthenticationError("GitHub token is invalid or expired.")
+            if response.status_code == 403 and response.headers.get("x-ratelimit-remaining") == "0":
+                reset_str = response.headers.get("x-ratelimit-reset")
+                reset_at = datetime.fromtimestamp(int(reset_str)) if reset_str else None
+                raise RateLimitError(
+                    f"GitHub rate limit exhausted (resets at {reset_str}).", 
+                    reset_at=reset_at
+                )
+            if response.status_code == 404:
+                raise RepositoryNotFoundError(
+                    f"GitHub returned 404 for {path} — repo missing or token lacks access"
+                )
+            if response.is_error:
+                raise AdapterError(
+                    f"GitHub API error {response.status_code} on {path}: "
+                    f"{response.text[:200]}"
+                )
+            return response
+        raise AdapterError("Unreachable")
+
     def _get(self, path: str, **params: Any) -> httpx.Response:
-        response = self._client.get(f"{_API}{path}", params=params or None)
-        if response.status_code == 403 and response.headers.get(
-            "x-ratelimit-remaining"
-        ) == "0":
-            raise AdapterError(
-                f"GitHub rate limit exhausted (resets at "
-                f"{response.headers.get('x-ratelimit-reset')}). "
-                "Configure GITHUB_TOKEN for a 5000/hr limit."
-            )
-        if response.status_code == 404:
-            raise AdapterError(
-                f"GitHub returned 404 for {path} — repo missing or token lacks access"
-            )
-        if response.is_error:
-            raise AdapterError(
-                f"GitHub API error {response.status_code} on {path}: "
-                f"{response.text[:200]}"
-            )
-        return response
+        return self._request_with_retry("GET", path, params=params or None)
 
     def _paginate(self, path: str, limit: int, **params: Any) -> Iterator[dict]:
         """Yield items across pages until `limit` items or a short page."""
@@ -202,29 +222,19 @@ class GitHubAdapter:
     # GitHubPRService is unchanged.
 
     def _post(self, path: str, json: dict[str, Any]) -> httpx.Response:
-        response = self._client.post(f"{_API}{path}", json=json)
-        if response.is_error:
-            raise AdapterError(
-                f"GitHub API error {response.status_code} on {path}: "
-                f"{response.text[:300]}"
-            )
-        return response
+        return self._request_with_retry("POST", path, json=json)
 
     def get_branch_head(self, branch: str) -> str:
         ref = self._get(f"/repos/{self.full_name}/git/ref/heads/{branch}").json()
         return ref["object"]["sha"]
 
     def branch_exists(self, branch: str) -> bool:
-        response = self._client.get(
-            f"{_API}/repos/{self.full_name}/git/ref/heads/{branch}"
+        response = self._request_with_retry(
+            "GET",
+            f"/repos/{self.full_name}/git/ref/heads/{branch}",
+            allow_statuses=(404,)
         )
-        if response.status_code == 404:
-            return False
-        if response.is_error:
-            raise AdapterError(
-                f"GitHub API error {response.status_code} checking branch {branch}"
-            )
-        return True
+        return response.status_code != 404
 
     def create_branch(self, branch: str, from_sha: str) -> None:
         self._post(
@@ -240,15 +250,14 @@ class GitHubAdapter:
         import base64  # noqa: PLC0415
 
         params = {"ref": ref} if ref else {}
-        response = self._client.get(
-            f"{_API}/repos/{self.full_name}/contents/{path}", params=params
+        response = self._request_with_retry(
+            "GET",
+            f"/repos/{self.full_name}/contents/{path}",
+            allow_statuses=(404,),
+            params=params
         )
         if response.status_code == 404:
             return None
-        if response.is_error:
-            raise AdapterError(
-                f"GitHub API error {response.status_code} fetching {path}"
-            )
         payload = response.json()
         if payload.get("type") != "file" or payload.get("encoding") != "base64":
             return None
@@ -260,15 +269,16 @@ class GitHubAdapter:
         """One commit updating one file on a branch (contents API)."""
         import base64  # noqa: PLC0415
 
-        self._client.put(
-            f"{_API}/repos/{self.full_name}/contents/{path}",
+        self._request_with_retry(
+            "PUT",
+            f"/repos/{self.full_name}/contents/{path}",
             json={
                 "message": message,
                 "content": base64.b64encode(content).decode(),
                 "branch": branch,
                 "sha": sha,
             },
-        ).raise_for_status()
+        )
 
     def find_pull(self, head_branch: str) -> str | None:
         owner = self.full_name.split("/")[0]
@@ -280,18 +290,19 @@ class GitHubAdapter:
         return pulls[0]["html_url"] if pulls else None
 
     def create_pull(self, title: str, body: str, head: str, base: str) -> str:
-        response = self._client.post(
-            f"{_API}/repos/{self.full_name}/pulls",
+        response = self._request_with_retry(
+            "POST",
+            f"/repos/{self.full_name}/pulls",
+            allow_statuses=(422,),
             json={"title": title, "body": body, "head": head, "base": base},
         )
-        if response.status_code == 422 and "already exist" in response.text:
-            existing = self.find_pull(head)
-            if existing:
-                return existing
-        if response.is_error:
+        if response.status_code == 422:
+            if "already exist" in response.text:
+                existing = self.find_pull(head)
+                if existing:
+                    return existing
             raise AdapterError(
-                f"GitHub API error {response.status_code} creating PR: "
-                f"{response.text[:300]}"
+                f"GitHub API error 422 creating PR: {response.text[:300]}"
             )
         return response.json()["html_url"]
 

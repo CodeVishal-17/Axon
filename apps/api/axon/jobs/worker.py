@@ -25,6 +25,7 @@ from axon.db.models import Job
 from axon.db.session import get_sessionmaker
 from axon.jobs import queue
 from axon.jobs.handlers import get_handler
+from axon.adapters.base import RateLimitError, AuthenticationError
 
 logger = logging.getLogger("axon.jobs.worker")
 
@@ -97,7 +98,19 @@ class Worker:
         except Exception as exc:  # noqa: BLE001 — worker must survive any handler error
             db.rollback()  # discard the handler's partial work
             logger.exception("job handler raised id=%s kind=%s", job_id, kind.value)
-            queue.mark_failed(db, job_id, f"{type(exc).__name__}: {exc}")
+            
+            run_at = None
+            if isinstance(exc, RateLimitError) and exc.reset_at:
+                run_at = exc.reset_at
+            
+            if isinstance(exc, AuthenticationError):
+                # Expired token won't recover; fail permanently via existing mechanism
+                job = db.get(Job, job_id)
+                if job:
+                    job.attempts = get_settings().job_max_attempts
+                    db.commit()
+
+            queue.mark_failed(db, job_id, f"{type(exc).__name__}: {exc}", run_at=run_at)
 
 
 def main() -> None:

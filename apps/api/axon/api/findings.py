@@ -99,6 +99,7 @@ class FindingOut(BaseModel):
     claim: ClaimBrief
     event: EventBrief | None
     created_at: datetime
+    pr_url: str | None = None
 
 
 class FindingPage(BaseModel):
@@ -139,6 +140,7 @@ def _to_out(finding: Finding) -> FindingOut:
             else None
         ),
         created_at=finding.created_at,
+        pr_url=finding.fix.pr_url if finding.fix else None,
     )
 
 
@@ -165,7 +167,7 @@ def list_findings(
     total = db.scalar(select(func.count()).select_from(Finding).where(*conditions))
     rows = db.scalars(
         select(Finding)
-        .options(joinedload(Finding.claim), joinedload(Finding.event))
+        .options(joinedload(Finding.claim), joinedload(Finding.event), joinedload(Finding.fix))
         .where(*conditions)
         .order_by(Finding.created_at.desc(), Finding.id)
         .limit(limit)

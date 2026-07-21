@@ -22,12 +22,15 @@ services:
   api:
     build:
       context: apps/api
+    env_file:
+      - apps/api/.env
     environment:
       # Inside the compose network the DB host is the service name, not localhost.
-      DATABASE_URL: postgresql+psycopg://axon:axon@db:5432/axon
-      ENVIRONMENT: development
-      LOG_LEVEL: INFO
-      CORS_ORIGINS: http://localhost:3000
+      DATABASE_URL: ${DATABASE_URL:-postgresql+psycopg://axon:axon@db:5432/axon}
+      ENVIRONMENT: ${ENVIRONMENT:-development}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000}
+      RUN_MIGRATIONS: "true"
     ports:
       - "8000:8000"
     depends_on:
@@ -35,26 +38,44 @@ services:
         condition: service_healthy
     # Bind-mount source for hot reload during the hackathon; the Dockerfile's
     # baked-in copy is what production deploys (Railway/Render) will use.
-    volumes:
-      - ./apps/api:/app
     command: uvicorn axon.main:app --host 0.0.0.0 --port 8000 --reload
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/healthz')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   worker:
     # Same image as the api — one codebase, two processes.
     build:
       context: apps/api
+    env_file:
+      - apps/api/.env
     environment:
-      DATABASE_URL: postgresql+psycopg://axon:axon@db:5432/axon
-      ENVIRONMENT: development
-      LOG_LEVEL: INFO
+      DATABASE_URL: ${DATABASE_URL:-postgresql+psycopg://axon:axon@db:5432/axon}
+      ENVIRONMENT: ${ENVIRONMENT:-development}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
     depends_on:
       db:
         condition: service_healthy
-    volumes:
-      - ./apps/api:/app
+      api:
+        condition: service_healthy
     command: python -m axon.jobs.worker
 
-  # The `web` service is added when the frontend is containerized.
+  web:
+    container_name: axon-web-new
+    build:
+      context: apps/web
+    environment:
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8000}
+    ports:
+      - "3000:3000"
+    command: npm start
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000', (r) => {if (r.statusCode !== 200) process.exit(1)})"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
 volumes:
   pgdata:

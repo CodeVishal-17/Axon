@@ -98,7 +98,7 @@ def mark_succeeded(db: Session, job_id: uuid.UUID) -> None:
     logger.info("job succeeded id=%s kind=%s", job.id, job.kind.value)
 
 
-def mark_failed(db: Session, job_id: uuid.UUID, error: str) -> None:
+def mark_failed(db: Session, job_id: uuid.UUID, error: str, run_at: datetime | None = None) -> None:
     """Record the failure; requeue with linear backoff while attempts
     remain, otherwise fail permanently."""
     settings = get_settings()
@@ -108,14 +108,17 @@ def mark_failed(db: Session, job_id: uuid.UUID, error: str) -> None:
     job.error = error[:_ERROR_MAX_CHARS]
 
     if job.attempts < settings.job_max_attempts:
-        backoff = timedelta(seconds=settings.job_retry_backoff_s * job.attempts)
+        if run_at is not None:
+            job.run_at = run_at
+        else:
+            backoff = timedelta(seconds=settings.job_retry_backoff_s * job.attempts)
+            job.run_at = _now() + backoff
         job.status = JobStatus.PENDING
-        job.run_at = _now() + backoff
         db.commit()
         logger.warning(
-            "job retry id=%s kind=%s attempt=%d/%d backoff=%ss error=%s",
+            "job retry id=%s kind=%s attempt=%d/%d scheduled_for=%s error=%s",
             job.id, job.kind.value, job.attempts,
-            settings.job_max_attempts, int(backoff.total_seconds()), error[:200],
+            settings.job_max_attempts, job.run_at.isoformat(), error[:200],
         )
     else:
         job.status = JobStatus.FAILED

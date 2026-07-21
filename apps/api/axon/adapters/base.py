@@ -30,7 +30,19 @@ def sha256_text(text: str) -> str:
 
 
 class AdapterError(RuntimeError):
-    """Raised for provider-side failures (auth, rate limit, missing repo)."""
+    """Raised for general provider-side failures."""
+
+class AuthenticationError(AdapterError):
+    """Raised for 401 Unauthorized (invalid or expired token)."""
+
+class RateLimitError(AdapterError):
+    """Raised when the provider's rate limit is exhausted."""
+    def __init__(self, message: str, reset_at: datetime | None = None) -> None:
+        super().__init__(message)
+        self.reset_at = reset_at
+
+class RepositoryNotFoundError(AdapterError):
+    """Raised for 404 Not Found (repo missing or token lacks access)."""
 
 
 @dataclass(frozen=True)

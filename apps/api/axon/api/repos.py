@@ -33,6 +33,8 @@ from axon.db.models import (
 )
 from axon.db.session import get_db
 from axon.jobs import queue
+from axon.adapters.github.adapter import GitHubAdapter
+from axon.adapters.base import AuthenticationError, RepositoryNotFoundError
 
 router = APIRouter(prefix="/api", tags=["repos"])
 
@@ -160,6 +162,18 @@ def connect_repo(body: RepoCreate, db: Session = Depends(get_db)) -> RepoDetail:
             Repo.provider == "github", Repo.full_name == body.full_name
         )
     ).first()
+
+    token_to_check = body.token
+    if not token_to_check and repo and repo.settings:
+        token_to_check = repo.settings.get("token")
+
+    try:
+        adapter = GitHubAdapter(full_name=body.full_name, token=token_to_check)
+        repo_info = adapter.fetch_repo_info()
+    except AuthenticationError:
+        raise HTTPException(status_code=401, detail="Invalid or expired GitHub token.")
+    except RepositoryNotFoundError:
+        raise HTTPException(status_code=404, detail="Repository not found or token lacks access.")
 
     if repo is None:
         repo = Repo(

@@ -29,7 +29,7 @@ services:
       DATABASE_URL: ${DATABASE_URL:-postgresql+psycopg://axon:axon@db:5432/axon}
       ENVIRONMENT: ${ENVIRONMENT:-development}
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
-      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000}
+      CORS_ORIGINS: http://13.127.65.8,http://13.127.65.8:3000,http://localhost:3000
       RUN_MIGRATIONS: "true"
     ports:
       - "8000:8000"
@@ -67,9 +67,9 @@ services:
     build:
       context: apps/web
       args:
-        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8000}
+        NEXT_PUBLIC_API_URL: http://13.127.65.8:8000
     environment:
-      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8000}
+      NEXT_PUBLIC_API_URL: http://13.127.65.8:8000
     ports:
       - "3000:3000"
     command: npm start

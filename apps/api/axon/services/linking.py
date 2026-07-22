@@ -63,7 +63,7 @@ LLM_CONFIDENCE_CAP = 0.70
 # A token matching more than this many files is ambiguous → no link.
 MAX_SYMBOL_TARGETS = 3
 
-LINK_TARGET_KINDS = (EntityKind.CODE_FILE, EntityKind.DOC)
+LINK_TARGET_KINDS = (EntityKind.CODE_FILE,)
 
 _IDENTIFIER_RE = re.compile(
     r"`([^`]+)`"                                   # backtick spans

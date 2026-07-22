@@ -167,10 +167,15 @@ class GitHubPRService:
                 status="already_open", pr_url=fix.pr_url,
                 reason="fix already has a pull request",
             )
-        if fix.status != FixStatus.GENERATED:
+        # GENERATED = a proposal awaiting action; PENDING = the action
+        # endpoint has claimed it for PR generation and enqueued this job
+        # (findings.py sets PENDING under a row lock to dedupe clicks).
+        # Both are actionable here; anything else (pr_opened handled above,
+        # failed) is not.
+        if fix.status not in (FixStatus.GENERATED, FixStatus.PENDING):
             return PROutcome(
                 status="invalid_state",
-                reason=f"fix is {fix.status.value}, not generated",
+                reason=f"fix is {fix.status.value}, not actionable",
             )
         proposal = load_proposal(fix)
         if proposal is None:

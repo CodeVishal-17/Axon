@@ -236,6 +236,22 @@ def test_happy_path_one_commit_one_pr(db: Session) -> None:
 
 
 @requires_db
+def test_pending_fix_opens_pr(db: Session) -> None:
+    """Regression: the action endpoint marks a fix PENDING under a row lock
+    before enqueueing the GENERATE_FIX job (dedup). The worker must treat
+    PENDING as actionable — otherwise it returns invalid_state, the job is
+    marked succeeded, and the PR is silently never opened."""
+    repo, finding, fix = _seed(db, fix_status=models.FixStatus.PENDING)
+    adapter = FakeWriteAdapter({"docs/auth.md": DOC_ORIGINAL})
+    outcome = GitHubPRService(db, adapter=adapter).open_pr_for_fix(fix.id)
+
+    assert outcome.status == "opened"
+    assert adapter.count("create_pull") == 1
+    db.expire_all()
+    assert db.get(models.Fix, fix.id).status == models.FixStatus.PR_OPENED
+    assert db.get(models.Finding, finding.id).status == models.FindingStatus.ACTIONED
+
+
 def test_identical_fix_never_opens_duplicate_pr(db: Session) -> None:
     repo, finding, fix = _seed(db)
     adapter = FakeWriteAdapter({"docs/auth.md": DOC_ORIGINAL})
@@ -284,6 +300,23 @@ def test_crash_resume_skips_recommit(db: Session) -> None:
     assert adapter.count("put_file") == 0                    # one commit ever
     assert adapter.count("create_pull") == 1
     assert adapter.count("create_branch") == 0
+
+
+@requires_db
+def test_pending_fix_stale_excerpt_marks_failed(db: Session) -> None:
+    """State transition PENDING → FAILED: a fix the endpoint queued (PENDING)
+    whose excerpt no longer applies must be marked FAILED, not left stuck."""
+    repo, finding, fix = _seed(db, fix_status=models.FixStatus.PENDING)
+    drifted_again = DOC_ORIGINAL.replace("24 hours", "12 hours")
+    adapter = FakeWriteAdapter({"docs/auth.md": drifted_again})
+
+    outcome = GitHubPRService(db, adapter=adapter).open_pr_for_fix(fix.id)
+    assert outcome.status == "stale"
+    assert adapter.count("create_pull") == 0
+    db.expire_all()
+    assert db.get(models.Fix, fix.id).status == models.FixStatus.FAILED
+    # finding stays OPEN — no PR was opened
+    assert db.get(models.Finding, finding.id).status == models.FindingStatus.OPEN
 
 
 @requires_db

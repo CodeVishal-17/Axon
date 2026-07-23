@@ -26,6 +26,7 @@ from typing import Any
 from sqlalchemy.orm import Session
 
 from axon.adapters.github.adapter import GitHubAdapter
+from axon.adapters.github.app_auth import token_for_repo
 from axon.config import get_settings
 from axon.db.models import Event, Repo
 from axon.services.claims import ClaimExtractionService, llm_configured
@@ -46,7 +47,7 @@ def run(db: Session, payload: dict[str, Any]) -> None:
     if repo is None:
         raise ValueError(f"repo {event.repo_id} not found")
 
-    adapter = GitHubAdapter(repo.full_name, token=repo.settings.get("token"))
+    adapter = GitHubAdapter(repo.full_name, token=token_for_repo(repo))
     changed_paths = list((event.payload or {}).get("changed_paths") or [])
 
     # Merged-PR payloads carry no file list — resolve it now and persist

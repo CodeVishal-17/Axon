@@ -81,9 +81,18 @@ class Settings(BaseSettings):
     job_stale_lock_seconds: float = 300.0
 
     # --- GitHub (consumed from T1.2 / T3.1 onward) ---
+    # PAT path (single-tenant / demo): authors PRs as the token owner.
     github_token: str | None = None
     github_webhook_secret: str | None = None
     simulate_shared_secret: str | None = None
+
+    # --- GitHub App (multi-tenant: PRs authored by the app's bot identity) ---
+    # When both an app id and a private key are set, the adapter authenticates
+    # per installation instead of using github_token. Provide the key EITHER as
+    # a file path (recommended: mount the .pem) OR inline (literal-\n tolerated).
+    github_app_id: int | None = None
+    github_app_private_key_path: str | None = None
+    github_app_private_key: str | None = None
 
     @property
     def cors_origin_list(self) -> list[str]:

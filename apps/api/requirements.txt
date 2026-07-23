@@ -9,3 +9,6 @@ pgvector>=0.3
 openai>=1.55
 anthropic>=0.69
 httpx>=0.27
+# GitHub App auth: RS256 JWT signing for installation tokens.
+PyJWT>=2.8
+cryptography>=42

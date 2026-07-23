@@ -207,8 +207,9 @@ class DriftVerifier:
 
     def _default_fetcher(self, repo: Repo) -> FetchFile:
         from axon.adapters.github.adapter import GitHubAdapter  # noqa: PLC0415
+        from axon.adapters.github.app_auth import token_for_repo  # noqa: PLC0415
 
-        adapter = GitHubAdapter(repo.full_name, token=repo.settings.get("token"))
+        adapter = GitHubAdapter(repo.full_name, token=token_for_repo(repo))
         return adapter.fetch_file
 
     def _verify_claim(self, repo: Repo, claim: Claim) -> None:

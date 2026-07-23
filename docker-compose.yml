@@ -33,6 +33,10 @@ services:
       RUN_MIGRATIONS: "true"
     ports:
       - "8000:8000"
+    volumes:
+      # GitHub App private key, read-only. Put the .pem under ./secrets/ on the
+      # host — never baked into the image, never committed (see .gitignore).
+      - ./secrets:/app/secrets:ro
     depends_on:
       db:
         condition: service_healthy
@@ -55,6 +59,9 @@ services:
       DATABASE_URL: ${DATABASE_URL:-postgresql+psycopg://axon:axon@db:5432/axon}
       ENVIRONMENT: ${ENVIRONMENT:-development}
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
+    volumes:
+      # Same read-only GitHub App key mount as the api (the worker opens PRs).
+      - ./secrets:/app/secrets:ro
     depends_on:
       db:
         condition: service_healthy

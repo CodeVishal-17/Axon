@@ -155,8 +155,9 @@ class GitHubPRService:
         if self._adapter is not None:
             return self._adapter
         from axon.adapters.github.adapter import GitHubAdapter  # noqa: PLC0415
+        from axon.adapters.github.app_auth import token_for_repo  # noqa: PLC0415
 
-        return GitHubAdapter(repo.full_name, token=repo.settings.get("token"))
+        return GitHubAdapter(repo.full_name, token=token_for_repo(repo))
 
     def open_pr_for_fix(self, fix_id: uuid.UUID) -> PROutcome:
         fix = self.db.get(Fix, fix_id)

@@ -27,6 +27,10 @@ Thumbs.db
 # Local data
 pgdata/
 
+# GitHub App private keys — mounted at runtime, never committed
+secrets/
+*.pem
+
 # Type-generation intermediate (regenerate with `make types`;
 # the generated lib/api/types.generated.ts IS committed)
 apps/web/openapi.json

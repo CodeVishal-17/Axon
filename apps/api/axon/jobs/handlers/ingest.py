@@ -20,6 +20,7 @@ from typing import Any
 from sqlalchemy.orm import Session
 
 from axon.adapters.github.adapter import GitHubAdapter
+from axon.adapters.github.app_auth import token_for_repo
 from axon.db.models import Repo
 from axon.services.claims import ClaimExtractionService, llm_configured
 from axon.services.ingestion import IngestionService
@@ -36,7 +37,7 @@ def run(db: Session, payload: dict[str, Any]) -> None:
     if repo is None:
         raise ValueError(f"repo {repo_id} not found")
 
-    adapter = GitHubAdapter(repo.full_name, token=repo.settings.get("token"))
+    adapter = GitHubAdapter(repo.full_name, token=token_for_repo(repo))
     IngestionService(db, adapter).run(repo)
 
     if llm_configured():

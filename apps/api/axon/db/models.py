@@ -35,6 +35,7 @@ from typing import Any
 from pgvector.sqlalchemy import Vector
 from sqlalchemy import (
     DDL,
+    BigInteger,
     DateTime,
     Enum,
     Float,
@@ -192,13 +193,36 @@ class JobStatus(str, enum.Enum):
 # --- Models --------------------------------------------------------------
 
 
+class User(TimestampMixin, Base):
+    """An authenticated account — identity comes from GitHub OAuth (T-auth).
+
+    The tenant owner: repos are scoped to a user via ``repos.owner_id``. Only
+    safe fields are ever returned by the API; ``access_token`` (the GitHub user
+    token, kept for future installations listing) is server-side only and never
+    serialized."""
+
+    __tablename__ = "users"
+
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    # GitHub's numeric user id — the stable identity key (login can change).
+    github_id: Mapped[int] = mapped_column(BigInteger, unique=True, nullable=False)
+    login: Mapped[str] = mapped_column(String(255), nullable=False)
+    name: Mapped[str | None] = mapped_column(String(255))
+    avatar_url: Mapped[str | None] = mapped_column(String(512))
+    email: Mapped[str | None] = mapped_column(String(320))
+    access_token: Mapped[str | None] = mapped_column(Text)
+
+    repos: Mapped[list[Repo]] = relationship(back_populates="owner")
+
+
 class Repo(TimestampMixin, Base):
-    """A connected repository — the tenant boundary; every hot query is
+    """A connected repository — scoped to its owning user. Every hot query is
     scoped by repo_id."""
 
     __tablename__ = "repos"
     __table_args__ = (
         UniqueConstraint("provider", "full_name", name="provider_full_name"),
+        Index("ix_repos_owner", "owner_id"),
     )
 
     id: Mapped[uuid.UUID] = _uuid_pk()
@@ -211,7 +235,13 @@ class Repo(TimestampMixin, Base):
     )
     last_ingested_sha: Mapped[str | None] = mapped_column(String(64))
     settings: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict, nullable=False)
+    # Nullable: repos connected before auth existed have no owner (claimed on
+    # reconnect). SET NULL on user delete keeps the repo + its findings history.
+    owner_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL")
+    )
 
+    owner: Mapped[User | None] = relationship(back_populates="repos")
     entities: Mapped[list[Entity]] = relationship(
         back_populates="repo", cascade="all, delete-orphan", passive_deletes=True
     )

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { ApiStatus } from "@/components/layout/api-status";
+import { AuthControl } from "@/components/layout/auth-control";
 
 /**
  * Global top bar, present on every page.
@@ -30,6 +31,7 @@ export function SiteHeader() {
           >
             GitHub
           </a>
+          <AuthControl />
         </nav>
       </div>
     </header>

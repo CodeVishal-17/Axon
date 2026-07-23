@@ -24,6 +24,74 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/auth/github/login": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Github Login */
+        get: operations["github_login_api_auth_github_login_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/auth/github/callback": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Github Callback */
+        get: operations["github_callback_api_auth_github_callback_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/auth/me": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Me */
+        get: operations["me_api_auth_me_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/auth/logout": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Logout */
+        post: operations["logout_api_auth_logout_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/repos": {
         parameters: {
             query?: never;
@@ -35,11 +103,13 @@ export interface paths {
         put?: never;
         /**
          * Connect Repo
-         * @description Connect a repository and enqueue its first ingest.
+         * @description Connect a repository and enqueue its first ingest. Requires sign-in;
+         *     the repo is owned by the connecting user.
          *
          *     Idempotent on ``full_name``: reconnecting an existing repo updates the
          *     stored token (if provided) and re-enqueues ingestion only when the
-         *     previous one failed — a healthy repo is not re-ingested by accident.
+         *     previous one failed — a healthy repo is not re-ingested by accident. A
+         *     legacy null-owner repo is claimed by the connecting user.
          */
         post: operations["connect_repo_api_repos_post"];
         delete?: never;
@@ -133,6 +203,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/dashboard": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Dashboard */
+        get: operations["get_dashboard_api_dashboard_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/webhooks/github": {
         parameters: {
             query?: never;
@@ -171,6 +258,26 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** ActivityItem */
+        ActivityItem: {
+            /** Kind */
+            kind: string;
+            /**
+             * Finding Id
+             * Format: uuid
+             */
+            finding_id: string;
+            /** Repo Full Name */
+            repo_full_name: string;
+            /** Title */
+            title: string;
+            /** Pr Url */
+            pr_url?: string | null;
+            /** Reason */
+            reason?: string | null;
+            /** At */
+            at: string;
+        };
         /**
          * AnchorOut
          * @description Source location of a claim (repo-relative).
@@ -206,6 +313,14 @@ export interface components {
          * @enum {string}
          */
         ClaimType: "behavior" | "architecture" | "process" | "status";
+        /** DashboardOut */
+        DashboardOut: {
+            totals: components["schemas"]["Totals"];
+            /** Repos */
+            repos: components["schemas"]["RepoSummary"][];
+            /** Recent Activity */
+            recent_activity: components["schemas"]["ActivityItem"][];
+        };
         /**
          * EntityKind
          * @enum {string}
@@ -353,7 +468,7 @@ export interface components {
              * Format: date-time
              */
             created_at: string;
-            /** PR URL */
+            /** Pr Url */
             pr_url?: string | null;
         };
         /** FindingPage */
@@ -485,6 +600,38 @@ export interface components {
             };
             latest_job: components["schemas"]["JobOut"] | null;
         };
+        /** RepoSummary */
+        RepoSummary: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Full Name */
+            full_name: string;
+            /** Ingest Status */
+            ingest_status: string;
+            /**
+             * Findings Open
+             * @default 0
+             */
+            findings_open: number;
+            /**
+             * Findings Actioned
+             * @default 0
+             */
+            findings_actioned: number;
+            /**
+             * Findings Dismissed
+             * @default 0
+             */
+            findings_dismissed: number;
+            /**
+             * Prs Opened
+             * @default 0
+             */
+            prs_opened: number;
+        };
         /**
          * SimulateRequest
          * @description A canned GitHub-style webhook: same event names, same payload
@@ -505,6 +652,65 @@ export interface components {
             /** External Id */
             external_id?: string | null;
         };
+        /** Totals */
+        Totals: {
+            /**
+             * Findings Total
+             * @default 0
+             */
+            findings_total: number;
+            /**
+             * Findings Open
+             * @default 0
+             */
+            findings_open: number;
+            /**
+             * Findings Actioned
+             * @default 0
+             */
+            findings_actioned: number;
+            /**
+             * Findings Dismissed
+             * @default 0
+             */
+            findings_dismissed: number;
+            /**
+             * Fixes Proposed
+             * @default 0
+             */
+            fixes_proposed: number;
+            /**
+             * Prs Opened
+             * @default 0
+             */
+            prs_opened: number;
+            /**
+             * Fixes Blocked
+             * @default 0
+             */
+            fixes_blocked: number;
+        };
+        /**
+         * UserOut
+         * @description Safe user fields — never includes access_token.
+         */
+        UserOut: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Github Id */
+            github_id: number;
+            /** Login */
+            login: string;
+            /** Name */
+            name: string | null;
+            /** Avatar Url */
+            avatar_url: string | null;
+            /** Email */
+            email: string | null;
+        };
         /** ValidationError */
         ValidationError: {
             /** Location */
@@ -513,10 +719,6 @@ export interface components {
             msg: string;
             /** Error Type */
             type: string;
-            /** Input */
-            input?: unknown;
-            /** Context */
-            ctx?: Record<string, never>;
         };
     };
     responses: never;
@@ -543,6 +745,98 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HealthResponse"];
+                };
+            };
+        };
+    };
+    github_login_api_auth_github_login_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    github_callback_api_auth_github_callback_get: {
+        parameters: {
+            query?: {
+                code?: string | null;
+                state?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    me_api_auth_me_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserOut"];
+                };
+            };
+        };
+    };
+    logout_api_auth_logout_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
                 };
             };
         };
@@ -717,6 +1011,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_dashboard_api_dashboard_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DashboardOut"];
                 };
             };
         };

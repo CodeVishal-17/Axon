@@ -36,6 +36,11 @@ export type EvidenceOut = components["schemas"]["EvidenceOut"];
 export type FindingActionRequest = components["schemas"]["FindingActionRequest"];
 export type FindingActionResponse = components["schemas"]["FindingActionResponse"];
 export type FindingAction = FindingActionRequest["action"];
+export type UserOut = components["schemas"]["UserOut"];
+export type DashboardOut = components["schemas"]["DashboardOut"];
+export type DashboardTotals = components["schemas"]["Totals"];
+export type DashboardRepo = components["schemas"]["RepoSummary"];
+export type DashboardActivity = components["schemas"]["ActivityItem"];
 
 // --- Client ------------------------------------------------------------
 
@@ -88,6 +93,8 @@ export async function apiFetch<T>(
   const url = `${API_BASE_URL}${path}`;
   const response = await fetch(url, {
     ...init,
+    // Send the session cookie on every call (auth is a same-host cookie).
+    credentials: "include",
     headers: {
       "Content-Type": "application/json",
       ...init?.headers,
@@ -156,6 +163,29 @@ export function actionFinding(
     method: "POST",
     body: JSON.stringify({ action }),
   });
+}
+
+// --- Auth + dashboard --------------------------------------------------
+
+/** The absolute URL that starts the GitHub sign-in flow (a top-level
+ *  navigation, not a fetch — the backend handles the OAuth redirect). */
+export function githubLoginUrl(): string {
+  return `${API_BASE_URL}/api/auth/github/login`;
+}
+
+/** GET /api/auth/me — the current user; throws ApiError(401) when signed out. */
+export function getMe(): Promise<UserOut> {
+  return apiFetch<UserOut>("/api/auth/me");
+}
+
+/** POST /api/auth/logout — clears the session cookie. */
+export function logout(): Promise<{ ok: boolean }> {
+  return apiFetch<{ ok: boolean }>("/api/auth/logout", { method: "POST" });
+}
+
+/** GET /api/dashboard — per-user rollup of findings, fixes, and activity. */
+export function getDashboard(): Promise<DashboardOut> {
+  return apiFetch<DashboardOut>("/api/dashboard");
 }
 
 /** GET /api/repos/{id}/entities — paginated, filterable entity listing. */

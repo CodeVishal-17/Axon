@@ -30,9 +30,11 @@ from axon.db.models import (
     JobKind,
     JobStatus,
     Repo,
+    User,
 )
 from axon.db.session import get_db
 from axon.jobs import queue
+from axon.api.auth import authorize_repo, current_user, optional_user
 from axon.adapters.github.adapter import GitHubAdapter
 from axon.adapters.base import AuthenticationError, RepositoryNotFoundError
 
@@ -145,12 +147,18 @@ def _detail(db: Session, repo: Repo) -> RepoDetail:
 
 
 @router.post("/repos", response_model=RepoDetail)
-def connect_repo(body: RepoCreate, db: Session = Depends(get_db)) -> RepoDetail:
-    """Connect a repository and enqueue its first ingest.
+def connect_repo(
+    body: RepoCreate,
+    db: Session = Depends(get_db),
+    user: User = Depends(current_user),
+) -> RepoDetail:
+    """Connect a repository and enqueue its first ingest. Requires sign-in;
+    the repo is owned by the connecting user.
 
     Idempotent on ``full_name``: reconnecting an existing repo updates the
     stored token (if provided) and re-enqueues ingestion only when the
-    previous one failed — a healthy repo is not re-ingested by accident.
+    previous one failed — a healthy repo is not re-ingested by accident. A
+    legacy null-owner repo is claimed by the connecting user.
     """
     if not _FULL_NAME_RE.match(body.full_name):
         raise HTTPException(
@@ -162,6 +170,10 @@ def connect_repo(body: RepoCreate, db: Session = Depends(get_db)) -> RepoDetail:
             Repo.provider == "github", Repo.full_name == body.full_name
         )
     ).first()
+
+    # A repo already owned by someone else is off-limits (404, don't leak it).
+    if repo is not None and repo.owner_id is not None and repo.owner_id != user.id:
+        raise HTTPException(status_code=404, detail="repository not found")
 
     token_to_check = body.token
     if not token_to_check and repo and repo.settings:
@@ -178,15 +190,18 @@ def connect_repo(body: RepoCreate, db: Session = Depends(get_db)) -> RepoDetail:
     if repo is None:
         repo = Repo(
             full_name=body.full_name,
+            owner_id=user.id,
             settings={"token": body.token} if body.token else {},
         )
         db.add(repo)
         db.commit()
         queue.enqueue(db, JobKind.INGEST, {"repo_id": str(repo.id)})
     else:
+        if repo.owner_id is None:  # claim a legacy (pre-auth) repo
+            repo.owner_id = user.id
         if body.token:
             repo.settings = {**repo.settings, "token": body.token}
-            db.commit()
+        db.commit()
         if repo.ingest_status == IngestStatus.FAILED:
             repo.ingest_status = IngestStatus.PENDING
             db.commit()
@@ -196,9 +211,15 @@ def connect_repo(body: RepoCreate, db: Session = Depends(get_db)) -> RepoDetail:
 
 
 @router.get("/repos/{repo_id}", response_model=RepoDetail)
-def get_repo(repo_id: uuid.UUID, db: Session = Depends(get_db)) -> RepoDetail:
+def get_repo(
+    repo_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    user: User | None = Depends(optional_user),
+) -> RepoDetail:
     """Repository metadata + ingest status + latest job + entity counts."""
-    return _detail(db, _get_repo(db, repo_id))
+    repo = _get_repo(db, repo_id)
+    authorize_repo(repo, user)
+    return _detail(db, repo)
 
 
 @router.get("/repos/{repo_id}/entities", response_model=EntityPage)
@@ -211,6 +232,7 @@ def list_entities(
     limit: int = Query(default=50, ge=1, le=200),
     offset: int = Query(default=0, ge=0),
     db: Session = Depends(get_db),
+    user: User | None = Depends(optional_user),
 ) -> EntityPage:
     """Paginated entity listing with kind filter, sort, and name/path search.
 
@@ -218,6 +240,7 @@ def list_entities(
     list responses — detail-level content ships with the feed/claims APIs.
     """
     repo = _get_repo(db, repo_id)
+    authorize_repo(repo, user)
 
     conditions = [Entity.repo_id == repo.id]
     if kind is not None:

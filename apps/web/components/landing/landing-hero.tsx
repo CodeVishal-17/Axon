@@ -3,8 +3,9 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
-import { ArrowRight, GitBranch, Loader2, Play } from "lucide-react";
-import { ApiError, connectRepo } from "@/lib/api";
+import { ArrowRight, GitBranch, LogIn, Loader2, Play } from "lucide-react";
+import { ApiError, connectRepo, githubLoginUrl } from "@/lib/api";
+import { useMe } from "@/lib/queries";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PageContainer } from "@/components/layout/page-container";
@@ -14,6 +15,8 @@ const FULL_NAME_RE = /^[\w.-]+\/[\w.-]+$/;
 /** The only conversion surface: a real repository connection, no demo data. */
 export function LandingHero() {
   const router = useRouter();
+  const { data: user } = useMe();
+  const signedIn = Boolean(user);
   const [repo, setRepo] = useState("");
   const [token, setToken] = useState("");
   const [validationError, setValidationError] = useState<string | null>(null);
@@ -26,6 +29,7 @@ export function LandingHero() {
 
   function submit(event: React.FormEvent) {
     event.preventDefault();
+    if (!signedIn) return; // gated: the button is a sign-in CTA when signed out
     if (!FULL_NAME_RE.test(repo.trim())) {
       setValidationError("Enter a repository as owner/repository");
       return;
@@ -95,30 +99,38 @@ export function LandingHero() {
                       disabled={connect.isPending}
                     />
                   </div>
-                  <Button type="submit" disabled={connect.isPending}>
-                    {connect.isPending ? (
-                      <><Loader2 className="animate-spin mr-2 size-4" aria-hidden /> Connecting…</>
-                    ) : (
-                      <>Connect <ArrowRight className="ml-2 size-4" aria-hidden /></>
-                    )}
-                  </Button>
+                  {signedIn ? (
+                    <Button type="submit" disabled={connect.isPending}>
+                      {connect.isPending ? (
+                        <><Loader2 className="animate-spin mr-2 size-4" aria-hidden /> Connecting…</>
+                      ) : (
+                        <>Connect <ArrowRight className="ml-2 size-4" aria-hidden /></>
+                      )}
+                    </Button>
+                  ) : (
+                    <Button type="button" render={<a href={githubLoginUrl()} />}>
+                      <LogIn className="mr-2 size-4" aria-hidden /> Sign in to connect
+                    </Button>
+                  )}
                 </div>
-                <details className="group mt-3">
-                  <summary className="text-muted-foreground cursor-pointer list-none text-xs hover:text-foreground focus-visible:outline-none [&::-webkit-details-marker]:hidden">
-                    <span className="group-open:hidden">Private repository? Add a token</span>
-                    <span className="hidden group-open:inline">GitHub token (optional)</span>
-                  </summary>
-                  <Input
-                    value={token}
-                    onChange={(event) => setToken(event.target.value)}
-                    type="password"
-                    autoComplete="off"
-                    placeholder="Fine-grained GitHub token"
-                    aria-label="GitHub personal access token (optional)"
-                    className="mt-2 font-mono text-xs"
-                    disabled={connect.isPending}
-                  />
-                </details>
+                {signedIn ? (
+                  <details className="group mt-3">
+                    <summary className="text-muted-foreground cursor-pointer list-none text-xs hover:text-foreground focus-visible:outline-none [&::-webkit-details-marker]:hidden">
+                      <span className="group-open:hidden">Private repository? Add a token</span>
+                      <span className="hidden group-open:inline">GitHub token (optional)</span>
+                    </summary>
+                    <Input
+                      value={token}
+                      onChange={(event) => setToken(event.target.value)}
+                      type="password"
+                      autoComplete="off"
+                      placeholder="Fine-grained GitHub token"
+                      aria-label="GitHub personal access token (optional)"
+                      className="mt-2 font-mono text-xs"
+                      disabled={connect.isPending}
+                    />
+                  </details>
+                ) : null}
                 {errorText ? <p role="alert" className="mt-2 text-sm text-red-400">{errorText}</p> : null}
               </form>
             </div>

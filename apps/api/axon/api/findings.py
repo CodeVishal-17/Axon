@@ -34,6 +34,8 @@ from axon.db.models import (
 )
 from axon.db.session import get_db
 from axon.jobs import queue
+from axon.api.auth import authorize_repo, optional_user
+from axon.db.models import User
 
 router = APIRouter(prefix="/api", tags=["findings"])
 
@@ -152,11 +154,14 @@ def list_findings(
     limit: int = Query(default=50, ge=1, le=200),
     offset: int = Query(default=0, ge=0),
     db: Session = Depends(get_db),
+    user: User | None = Depends(optional_user),
 ) -> FindingPage:
     """Findings for the Truth Feed, newest first. ``status`` defaults to
     open (pass explicitly to see actioned/dismissed history)."""
-    if db.get(Repo, repo_id) is None:
+    repo = db.get(Repo, repo_id)
+    if repo is None:
         raise HTTPException(status_code=404, detail="repository not found")
+    authorize_repo(repo, user)
 
     conditions = [Finding.repo_id == repo_id]
     if status is not None:
@@ -199,12 +204,14 @@ def finding_action(
     finding_id: uuid.UUID,
     body: FindingActionRequest,
     db: Session = Depends(get_db),
+    user: User | None = Depends(optional_user),
 ) -> FindingActionResponse:
     """Human-in-the-loop actions on a finding (architecture §12: writes to
     customer repos happen only behind an explicit click)."""
     finding = db.get(Finding, finding_id)
     if finding is None:
         raise HTTPException(status_code=404, detail="finding not found")
+    authorize_repo(db.get(Repo, finding.repo_id), user)
 
     if body.action == "dismiss":
         finding.status = FindingStatus.DISMISSED

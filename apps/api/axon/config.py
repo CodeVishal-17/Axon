@@ -94,6 +94,24 @@ class Settings(BaseSettings):
     github_app_private_key_path: str | None = None
     github_app_private_key: str | None = None
 
+    # --- Auth (Sign in with GitHub) ---
+    # The Axon GitHub App doubles as the OAuth provider: its Client ID +
+    # Client Secret drive the user-authorization flow. session_secret signs the
+    # session cookie (HMAC); web_base_url is where the callback redirects back.
+    github_oauth_client_id: str | None = None
+    github_oauth_client_secret: str | None = None
+    session_secret: str | None = None
+    session_ttl_hours: int = 720  # 30 days
+    web_base_url: str = "http://localhost:3000"
+
+    @property
+    def github_oauth_configured(self) -> bool:
+        return bool(
+            self.github_oauth_client_id
+            and self.github_oauth_client_secret
+            and self.session_secret
+        )
+
     @property
     def cors_origin_list(self) -> list[str]:
         """CORS origins parsed into the list shape CORSMiddleware expects."""

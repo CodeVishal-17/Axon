@@ -14,6 +14,8 @@ import {
   ApiError,
   actionFinding,
   connectRepo,
+  getDashboard,
+  getMe,
   getRepo,
   listFindings,
   type FindingAction,
@@ -29,6 +31,43 @@ const FEED_POLL_IDLE_MS = 12000;
 
 export function isTerminal(status: RepoDetail["ingest_status"] | undefined) {
   return status === "ready" || status === "failed";
+}
+
+/**
+ * The signed-in user, or `null` when signed out. A 401 is the normal
+ * signed-out state, so it resolves to `null` rather than erroring; other
+ * failures surface. Cached generously — identity rarely changes mid-session.
+ */
+export function useMe() {
+  return useQuery({
+    queryKey: ["me"],
+    queryFn: async () => {
+      try {
+        return await getMe();
+      } catch (error) {
+        if (error instanceof ApiError && error.status === 401) return null;
+        throw error;
+      }
+    },
+    staleTime: 60_000,
+    retry: (failureCount, error) => {
+      if (error instanceof ApiError && error.status === 401) return false;
+      return failureCount < 2;
+    },
+  });
+}
+
+/** The per-user dashboard rollup. Only meaningful when signed in. */
+export function useDashboard(enabled = true) {
+  return useQuery({
+    queryKey: ["dashboard"],
+    queryFn: getDashboard,
+    enabled,
+    retry: (failureCount, error) => {
+      if (error instanceof ApiError && error.status === 401) return false;
+      return failureCount < 2;
+    },
+  });
 }
 
 /**

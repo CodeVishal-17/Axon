@@ -13,6 +13,8 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from axon import __version__
+from axon.api.auth import router as auth_router
+from axon.api.dashboard import router as dashboard_router
 from axon.api.findings import router as findings_router
 from axon.api.health import router as health_router
 from axon.api.repos import router as repos_router
@@ -62,8 +64,10 @@ def create_app() -> FastAPI:
     )
 
     app.include_router(health_router)
+    app.include_router(auth_router)
     app.include_router(repos_router)
     app.include_router(findings_router)
+    app.include_router(dashboard_router)
     app.include_router(webhooks_router)
     # Future routers (graph, ask, fixes, ws) are mounted here as their
     # tasks land.

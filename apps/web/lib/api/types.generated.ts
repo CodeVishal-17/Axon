@@ -220,6 +220,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/github/available-repos": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Available Repos */
+        get: operations["available_repos_api_github_available_repos_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/webhooks/github": {
         parameters: {
             query?: never;
@@ -289,6 +306,29 @@ export interface components {
             start_line?: number | null;
             /** End Line */
             end_line?: number | null;
+        };
+        /** AvailableRepo */
+        AvailableRepo: {
+            /** Full Name */
+            full_name: string;
+            /** Private */
+            private: boolean;
+            /** Description */
+            description?: string | null;
+            /**
+             * Connected
+             * @default false
+             */
+            connected: boolean;
+            /** Repo Id */
+            repo_id?: string | null;
+        };
+        /** AvailableReposOut */
+        AvailableReposOut: {
+            /** Repos */
+            repos: components["schemas"]["AvailableRepo"][];
+            /** Install Url */
+            install_url?: string | null;
         };
         /** ClaimBrief */
         ClaimBrief: {
@@ -1031,6 +1071,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DashboardOut"];
+                };
+            };
+        };
+    };
+    available_repos_api_github_available_repos_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AvailableReposOut"];
                 };
             };
         };

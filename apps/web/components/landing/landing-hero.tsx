@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
@@ -100,13 +101,18 @@ export function LandingHero() {
                     />
                   </div>
                   {signedIn ? (
-                    <Button type="submit" disabled={connect.isPending}>
-                      {connect.isPending ? (
-                        <><Loader2 className="animate-spin mr-2 size-4" aria-hidden /> Connecting…</>
-                      ) : (
-                        <>Connect <ArrowRight className="ml-2 size-4" aria-hidden /></>
-                      )}
-                    </Button>
+                    <div className="flex gap-2">
+                      <Button type="submit" disabled={connect.isPending}>
+                        {connect.isPending ? (
+                          <><Loader2 className="animate-spin mr-2 size-4" aria-hidden /> Connecting…</>
+                        ) : (
+                          <>Connect <ArrowRight className="ml-2 size-4" aria-hidden /></>
+                        )}
+                      </Button>
+                      <Button type="button" variant="outline" render={<Link href="/connect" />}>
+                        Browse your repos
+                      </Button>
+                    </div>
                   ) : (
                     <Button type="button" render={<a href={githubLoginUrl()} />}>
                       <LogIn className="mr-2 size-4" aria-hidden /> Sign in to connect

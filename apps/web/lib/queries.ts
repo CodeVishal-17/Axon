@@ -14,6 +14,7 @@ import {
   ApiError,
   actionFinding,
   connectRepo,
+  getAvailableRepos,
   getDashboard,
   getMe,
   getRepo,
@@ -62,6 +63,19 @@ export function useDashboard(enabled = true) {
   return useQuery({
     queryKey: ["dashboard"],
     queryFn: getDashboard,
+    enabled,
+    retry: (failureCount, error) => {
+      if (error instanceof ApiError && error.status === 401) return false;
+      return failureCount < 2;
+    },
+  });
+}
+
+/** Repos the signed-in user can connect (Axon App installations). */
+export function useAvailableRepos(enabled = true) {
+  return useQuery({
+    queryKey: ["available-repos"],
+    queryFn: getAvailableRepos,
     enabled,
     retry: (failureCount, error) => {
       if (error instanceof ApiError && error.status === 401) return false;

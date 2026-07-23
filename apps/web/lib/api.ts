@@ -37,6 +37,8 @@ export type FindingActionRequest = components["schemas"]["FindingActionRequest"]
 export type FindingActionResponse = components["schemas"]["FindingActionResponse"];
 export type FindingAction = FindingActionRequest["action"];
 export type UserOut = components["schemas"]["UserOut"];
+export type AvailableRepo = components["schemas"]["AvailableRepo"];
+export type AvailableReposOut = components["schemas"]["AvailableReposOut"];
 export type DashboardOut = components["schemas"]["DashboardOut"];
 export type DashboardTotals = components["schemas"]["Totals"];
 export type DashboardRepo = components["schemas"]["RepoSummary"];
@@ -186,6 +188,12 @@ export function logout(): Promise<{ ok: boolean }> {
 /** GET /api/dashboard — per-user rollup of findings, fixes, and activity. */
 export function getDashboard(): Promise<DashboardOut> {
   return apiFetch<DashboardOut>("/api/dashboard");
+}
+
+/** GET /api/github/available-repos — repos the user can connect (where the
+ *  Axon App is installed), which are already connected, and the install URL. */
+export function getAvailableRepos(): Promise<AvailableReposOut> {
+  return apiFetch<AvailableReposOut>("/api/github/available-repos");
 }
 
 /** GET /api/repos/{id}/entities — paginated, filterable entity listing. */

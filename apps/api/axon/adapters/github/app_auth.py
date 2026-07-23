@@ -100,6 +100,25 @@ def _app_request(method: str, path: str, **kwargs: Any) -> httpx.Response:
         return client.request(method, f"{_API}{path}", headers=headers, **kwargs)
 
 
+_app_slug_cache: dict[str, str | None] = {}
+
+
+def app_slug() -> str | None:
+    """The App's URL slug (for building the install URL), fetched once from
+    GET /app and cached. None when the app isn't configured."""
+    if not app_configured():
+        return None
+    if "slug" in _app_slug_cache:
+        return _app_slug_cache["slug"]
+    try:
+        response = _app_request("GET", "/app")
+        slug = response.json().get("slug") if not response.is_error else None
+    except AdapterError:
+        slug = None
+    _app_slug_cache["slug"] = slug
+    return slug
+
+
 def installation_id_for_repo(full_name: str) -> int | None:
     """The installation id covering ``owner/repo``, or None if the app isn't
     installed there. Cached per process."""

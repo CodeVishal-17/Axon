@@ -99,7 +99,7 @@ export function Dashboard() {
           title="No repositories connected yet"
           description="Connect a GitHub repository and Axon will start verifying your docs against the code. Its findings and fixes will show up here."
         >
-          <Button className="mt-2" render={<Link href="/" />}>
+          <Button className="mt-2" render={<Link href="/connect" />}>
             Connect a repository
             <ArrowRight className="size-4" aria-hidden />
           </Button>

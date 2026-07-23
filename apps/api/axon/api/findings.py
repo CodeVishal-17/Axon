@@ -216,23 +216,57 @@ def finding_action(
     # generate_fix
     # Lock the fix row to prevent concurrent workers from enqueueing duplicate jobs
     fix = db.scalar(select(Fix).where(Fix.finding_id == finding_id).with_for_update())
+    # Every non-actionable branch returns a stable machine `code` plus a
+    # human-readable `message`; the frontend shows the message verbatim, so
+    # each case reads distinctly instead of collapsing into one 409 string.
     if fix is None:
         raise HTTPException(
             status_code=409,
-            detail="no remediation proposal exists for this finding yet",
+            detail={
+                "code": "no_proposal",
+                "message": "Axon hasn't drafted a remediation for this finding yet.",
+            },
         )
     if fix.status == FixStatus.PR_OPENED:
         db.rollback()
         return FindingActionResponse(
             status="already_open", finding_status=finding.status, pr_url=fix.pr_url
         )
+    if fix.status == FixStatus.PENDING:
+        # A generate_fix job is already in flight (this is the duplicate-click
+        # / race guard — the first click moved GENERATED -> PENDING).
+        db.rollback()
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "code": "already_queued",
+                "message": "A fix is already queued — a worker is opening the pull request.",
+            },
+        )
+    if fix.status == FixStatus.FAILED:
+        # Axon drafted a proposal but a safety gate rejected it (grounding /
+        # stale excerpt / ambiguous match). Surface why, not a bare "no fix".
+        db.rollback()
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "code": "fix_blocked",
+                "message": "Axon drafted a fix, but it didn't pass the grounding check, "
+                "so no pull request was opened.",
+                "reason": fix.error,
+            },
+        )
     if fix.status != FixStatus.GENERATED:
         db.rollback()
         raise HTTPException(
             status_code=409,
-            detail=f"remediation is not actionable (status: {fix.status.value})",
+            detail={
+                "code": "not_actionable",
+                "message": f"This fix can't be opened right now (status: {fix.status.value}).",
+            },
         )
-    
+
+
     # Commit the PENDING state and the job enqueue atomically
     fix.status = FixStatus.PENDING
     job = queue.enqueue(db, JobKind.GENERATE_FIX, {"fix_id": str(fix.id)})

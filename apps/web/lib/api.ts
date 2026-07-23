@@ -39,16 +39,41 @@ export type FindingAction = FindingActionRequest["action"];
 
 // --- Client ------------------------------------------------------------
 
-/** Error carrying HTTP context so callers can branch on status. */
+/** Error carrying HTTP context so callers can branch on status.
+ *  `detail`/`code` come from the API's error body when present: the backend
+ *  sends `{"detail": {"code": "...", "message": "..."}}` for actionable 4xx
+ *  cases, so callers can show the exact message instead of a generic string. */
 export class ApiError extends Error {
   constructor(
     public readonly status: number,
     public readonly url: string,
     message: string,
+    public readonly detail?: string,
+    public readonly code?: string,
   ) {
     super(message);
     this.name = "ApiError";
   }
+}
+
+/** Pull a human message and stable code out of a FastAPI error body, which is
+ *  either `{"detail": "text"}` or `{"detail": {"code", "message"}}`. */
+function parseErrorBody(body: string): { detail?: string; code?: string } {
+  try {
+    const parsed = JSON.parse(body) as { detail?: unknown };
+    const d = parsed?.detail;
+    if (typeof d === "string") return { detail: d };
+    if (d && typeof d === "object") {
+      const obj = d as { message?: unknown; code?: unknown };
+      return {
+        detail: typeof obj.message === "string" ? obj.message : undefined,
+        code: typeof obj.code === "string" ? obj.code : undefined,
+      };
+    }
+  } catch {
+    // Non-JSON body (e.g. a proxy error page) — no structured detail.
+  }
+  return {};
 }
 
 /**
@@ -71,10 +96,13 @@ export async function apiFetch<T>(
 
   if (!response.ok) {
     const body = await response.text().catch(() => "");
+    const { detail, code } = parseErrorBody(body);
     throw new ApiError(
       response.status,
       url,
       `API ${response.status} on ${path}${body ? `: ${body.slice(0, 200)}` : ""}`,
+      detail,
+      code,
     );
   }
 

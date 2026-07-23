@@ -130,10 +130,14 @@ def test_findings_action_generate_fix_duplicate(client: TestClient, db: Session,
     assert resp1.status_code == 200
     assert resp1.json()["status"] == "queued"
 
-    # 3. Call the endpoint a second time (simulating a duplicate click/race)
+    # 3. Call the endpoint a second time (simulating a duplicate click/race).
+    #    The first click moved the fix GENERATED -> PENDING, so the dedup guard
+    #    now reports it as already queued (structured detail: code + message).
     resp2 = client.post(f"/api/findings/{finding.id}/action", json={"action": "generate_fix"})
     assert resp2.status_code == 409
-    assert "remediation is not actionable" in resp2.json()["detail"]
+    detail = resp2.json()["detail"]
+    assert detail["code"] == "already_queued"
+    assert "already queued" in detail["message"]
 
     # 4. Ensure only ONE job was queued
     jobs = db.scalars(
@@ -142,3 +146,58 @@ def test_findings_action_generate_fix_duplicate(client: TestClient, db: Session,
         .where(models.Job.payload["fix_id"].astext == str(fix.id))
     ).all()
     assert len(jobs) == 1
+
+
+def test_findings_action_no_proposal(client: TestClient, db: Session, seeded: str) -> None:
+    """A finding with no Fix row reports code=no_proposal (not a bare 409)."""
+    finding = db.scalars(
+        select(models.Finding)
+        .where(models.Finding.repo_id == uuid.UUID(seeded))
+        .where(models.Finding.status == models.FindingStatus.OPEN)
+    ).first()
+    assert finding is not None
+    assert finding.fix is None  # seeded finding has no remediation proposal
+
+    resp = client.post(f"/api/findings/{finding.id}/action", json={"action": "generate_fix"})
+    assert resp.status_code == 409
+    detail = resp.json()["detail"]
+    assert detail["code"] == "no_proposal"
+    assert "hasn't drafted" in detail["message"]
+
+
+def test_findings_action_fix_blocked_surfaces_reason(
+    client: TestClient, db: Session, seeded: str
+) -> None:
+    """A FAILED fix (rejected by a safety gate) reports code=fix_blocked and
+    surfaces the rejection reason instead of 'no remediation drafted'."""
+    finding = db.scalars(
+        select(models.Finding)
+        .where(models.Finding.repo_id == uuid.UUID(seeded))
+        .where(models.Finding.status == models.FindingStatus.OPEN)
+    ).first()
+    assert finding is not None
+
+    reason = "ungrounded values: replacement contains numbers not present in evidence"
+    fix = models.Fix(
+        finding=finding,
+        status=models.FixStatus.FAILED,
+        patch="-- patch",
+        error=reason,
+    )
+    db.add(fix)
+    db.commit()
+
+    resp = client.post(f"/api/findings/{finding.id}/action", json={"action": "generate_fix"})
+    assert resp.status_code == 409
+    detail = resp.json()["detail"]
+    assert detail["code"] == "fix_blocked"
+    assert "grounding check" in detail["message"]
+    assert detail["reason"] == reason
+
+    # No job was enqueued for a blocked fix.
+    jobs = db.scalars(
+        select(models.Job)
+        .where(models.Job.kind == models.JobKind.GENERATE_FIX)
+        .where(models.Job.payload["fix_id"].astext == str(fix.id))
+    ).all()
+    assert len(jobs) == 0

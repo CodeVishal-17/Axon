@@ -49,7 +49,12 @@ const EMPTY_COPY: Record<FindingStatus, { title: string; description: string }> 
 function friendlyError(error: unknown, context: "feed" | "action"): string {
   if (error instanceof ApiError) {
     if (error.status === 409) {
-      return "Axon hasn't drafted a remediation for this finding yet.";
+      // The API distinguishes the cases (no proposal yet / already queued /
+      // blocked by the grounding check) and sends a human message for each.
+      return (
+        error.detail ??
+        "Axon hasn't drafted a remediation for this finding yet."
+      );
     }
     if (error.status === 404) {
       return context === "feed"

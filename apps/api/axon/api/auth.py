@@ -167,29 +167,52 @@ def github_callback(
     request: Request,
     code: str | None = None,
     state: str | None = None,
+    installation_id: int | None = None,
+    setup_action: str | None = None,
     db: Session = Depends(get_db),
 ) -> RedirectResponse:
     settings = get_settings()
     if not settings.github_oauth_configured:
         raise HTTPException(status_code=503, detail="GitHub sign-in is not configured")
+
+    # Two flows land here:
+    #   * sign-in (our /login): carries a signed `state` we verify for CSRF.
+    #   * app install ("Install"/"Configure" on GitHub): carries
+    #     installation_id + setup_action and NO state (GitHub initiated it, so
+    #     there's no CSRF token of ours to check).
+    is_install = bool(installation_id or setup_action)
     claims = _verify(state or "")
-    if not code or not claims or claims.get("purpose") != "oauth_state":
-        raise HTTPException(status_code=400, detail="invalid oauth state")
+    state_ok = bool(claims and claims.get("purpose") == "oauth_state")
 
-    token = _exchange_code(code, _redirect_uri(request))
-    profile = _fetch_identity(token)
-    user = _upsert_user(db, profile, token)
+    # With a code (sign-in, or install when user-authorization is on) we can
+    # establish/refresh the session. The install path skips state — it's a
+    # GitHub-initiated redirect, not a forgeable cross-site request.
+    if code and (state_ok or is_install):
+        token = _exchange_code(code, _redirect_uri(request))
+        profile = _fetch_identity(token)
+        user = _upsert_user(db, profile, token)
+        dest = "/connect" if is_install else "/dashboard"
+        response = RedirectResponse(
+            url=f"{settings.web_base_url}{dest}", status_code=302
+        )
+        response.set_cookie(
+            key=SESSION_COOKIE,
+            value=create_session_token(user),
+            httponly=True,
+            samesite="lax",
+            max_age=settings.session_ttl_hours * 3600,
+            path="/",
+        )
+        return response
 
-    response = RedirectResponse(url=f"{settings.web_base_url}/dashboard", status_code=302)
-    response.set_cookie(
-        key=SESSION_COOKIE,
-        value=create_session_token(user),
-        httponly=True,
-        samesite="lax",
-        max_age=settings.session_ttl_hours * 3600,
-        path="/",
-    )
-    return response
+    # Install redirect without a usable code (user-authorization disabled): the
+    # user is typically already signed in — send them to pick their new repos.
+    if is_install:
+        return RedirectResponse(
+            url=f"{settings.web_base_url}/connect", status_code=302
+        )
+
+    raise HTTPException(status_code=400, detail="invalid oauth state")
 
 
 @router.get("/me", response_model=UserOut)

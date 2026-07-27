@@ -32,6 +32,8 @@ from axon.adapters.base import (
     CommitInfo,
     KnowledgeDoc,
     NormalizedEvent,
+    PullRequestFile,
+    PullRequestInfo,
     RepoFile,
     RepoInfo,
     sha256_text,
@@ -317,6 +319,82 @@ class GitHubAdapter:
             if "filename" in item:
                 paths.append(item["filename"])
         return tuple(paths)
+
+    # --- Review surface (T5.1) -------------------------------------------
+
+    def iter_open_pulls(self, limit: int = 50) -> Iterator[PullRequestInfo]:
+        """Open pull requests, most recently updated first — the review queue."""
+        for item in self._paginate(
+            f"/repos/{self.full_name}/pulls",
+            limit,
+            state="open",
+            sort="updated",
+            direction="desc",
+        ):
+            yield PullRequestInfo(
+                number=int(item["number"]),
+                title=item.get("title") or "",
+                body=(item.get("body") or "")[:_MAX_BODY_CHARS],
+                author=(item.get("user") or {}).get("login"),
+                head_sha=(item.get("head") or {}).get("sha") or "",
+                base_branch=(item.get("base") or {}).get("ref") or "",
+                draft=bool(item.get("draft")),
+                url=item.get("html_url", ""),
+                updated_at=_parse_dt(item.get("updated_at")),
+            )
+
+    def fetch_pull(self, number: int) -> PullRequestInfo:
+        item = self._get(f"/repos/{self.full_name}/pulls/{number}").json()
+        return PullRequestInfo(
+            number=int(item["number"]),
+            title=item.get("title") or "",
+            body=(item.get("body") or "")[:_MAX_BODY_CHARS],
+            author=(item.get("user") or {}).get("login"),
+            head_sha=(item.get("head") or {}).get("sha") or "",
+            base_branch=(item.get("base") or {}).get("ref") or "",
+            draft=bool(item.get("draft")),
+            url=item.get("html_url", ""),
+            updated_at=_parse_dt(item.get("updated_at")),
+        )
+
+    def fetch_pr_diff(self, number: int, limit: int = 300) -> tuple[PullRequestFile, ...]:
+        """Per-file patches for a pull request. The patch hunks are what the
+        review is grounded against — a comment may only cite lines that appear
+        in one of them."""
+        files: list[PullRequestFile] = []
+        for item in self._paginate(
+            f"/repos/{self.full_name}/pulls/{number}/files", limit
+        ):
+            if "filename" not in item:
+                continue
+            files.append(
+                PullRequestFile(
+                    path=item["filename"],
+                    status=item.get("status") or "modified",
+                    additions=int(item.get("additions") or 0),
+                    deletions=int(item.get("deletions") or 0),
+                    patch=item.get("patch"),
+                )
+            )
+        return tuple(files)
+
+    def create_review(
+        self,
+        number: int,
+        body: str,
+        comments: list[dict[str, Any]],
+        commit_id: str | None = None,
+        event: str = "COMMENT",
+    ) -> str:
+        """Post ONE review with inline comments. ``event`` stays COMMENT —
+        Axon never approves or requests changes on a human's behalf."""
+        payload: dict[str, Any] = {"body": body, "event": event}
+        if comments:
+            payload["comments"] = comments
+        if commit_id:
+            payload["commit_id"] = commit_id
+        response = self._post(f"/repos/{self.full_name}/pulls/{number}/reviews", payload)
+        return response.json().get("html_url", "")
 
     # --- Event normalization ---------------------------------------------
 

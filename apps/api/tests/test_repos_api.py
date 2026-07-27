@@ -13,6 +13,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy import select, text
 from sqlalchemy.orm import Session
 
+from axon.api.auth import current_user, optional_user
 from axon.db import Base, models
 from axon.db.session import get_engine
 from axon.main import create_app
@@ -35,10 +36,30 @@ pytestmark = pytest.mark.skipif(
 
 @pytest.fixture(scope="module")
 def client():
+    """Signed-in client: connecting a repository requires authentication, so
+    these endpoint tests run as a test user that owns what it creates."""
     Base.metadata.create_all(get_engine())
+    with Session(get_engine(), expire_on_commit=False) as setup:
+        user = setup.scalar(
+            select(models.User).where(models.User.login == "axon-test-repos")
+        )
+        if user is None:
+            user = models.User(github_id=990_001, login="axon-test-repos")
+            setup.add(user)
+            setup.commit()
+        user_id = user.id
+
     app = create_app()
+
+    def _test_user():
+        with Session(get_engine(), expire_on_commit=False) as session:
+            return session.get(models.User, user_id)
+
+    app.dependency_overrides[current_user] = _test_user
+    app.dependency_overrides[optional_user] = _test_user
     with TestClient(app) as test_client:
         yield test_client
+    app.dependency_overrides.clear()
 
 
 @pytest.fixture()

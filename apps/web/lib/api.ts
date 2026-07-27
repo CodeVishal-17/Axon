@@ -40,6 +40,14 @@ export type UserOut = components["schemas"]["UserOut"];
 export type AvailableRepo = components["schemas"]["AvailableRepo"];
 export type AvailableReposOut = components["schemas"]["AvailableReposOut"];
 export type DashboardOut = components["schemas"]["DashboardOut"];
+export type PullOut = components["schemas"]["PullOut"];
+export type PullListOut = components["schemas"]["PullListOut"];
+export type ReviewOut = components["schemas"]["ReviewOut"];
+export type ReviewCommentOut = components["schemas"]["ReviewCommentOut"];
+export type ReviewLens = ReviewCommentOut["lens"];
+export type ReviewStatus = ReviewOut["status"];
+export type ReviewRequestResponse =
+  components["schemas"]["ReviewRequestResponse"];
 export type DashboardTotals = components["schemas"]["Totals"];
 export type DashboardRepo = components["schemas"]["RepoSummary"];
 export type DashboardActivity = components["schemas"]["ActivityItem"];
@@ -194,6 +202,44 @@ export function getDashboard(): Promise<DashboardOut> {
  *  Axon App is installed), which are already connected, and the install URL. */
 export function getAvailableRepos(): Promise<AvailableReposOut> {
   return apiFetch<AvailableReposOut>("/api/github/available-repos");
+}
+
+// --- Pull-request review ------------------------------------------------
+
+/** GET /api/repos/{id}/pulls — open PRs with the review state of each one's
+ *  current revision. */
+export function listPulls(repoId: string): Promise<PullListOut> {
+  return apiFetch<PullListOut>(`/api/repos/${repoId}/pulls`);
+}
+
+/** POST .../review — enqueue an AI review (the worker generates it). */
+export function requestPrReview(
+  repoId: string,
+  prNumber: number,
+): Promise<ReviewRequestResponse> {
+  return apiFetch<ReviewRequestResponse>(
+    `/api/repos/${repoId}/pulls/${prNumber}/review`,
+    { method: "POST" },
+  );
+}
+
+/** GET .../review — the stored review; 404 until one has been generated. */
+export function getPrReview(
+  repoId: string,
+  prNumber: number,
+): Promise<ReviewOut> {
+  return apiFetch<ReviewOut>(`/api/repos/${repoId}/pulls/${prNumber}/review`);
+}
+
+/** POST .../review/post — publish the stored review to GitHub as the bot. */
+export function postPrReview(
+  repoId: string,
+  prNumber: number,
+): Promise<ReviewOut> {
+  return apiFetch<ReviewOut>(
+    `/api/repos/${repoId}/pulls/${prNumber}/review/post`,
+    { method: "POST" },
+  );
 }
 
 /** GET /api/repos/{id}/entities — paginated, filterable entity listing. */

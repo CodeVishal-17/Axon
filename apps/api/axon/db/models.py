@@ -177,10 +177,20 @@ class FixStatus(str, enum.Enum):
     FAILED = "failed"
 
 
+class ReviewStatus(str, enum.Enum):
+    """Lifecycle of an AI review of a pull request. Mirrors FixStatus: the
+    review is generated and stored, then posted only on an explicit click."""
+
+    GENERATED = "generated"
+    POSTED = "posted"
+    FAILED = "failed"
+
+
 class JobKind(str, enum.Enum):
     INGEST = "ingest"
     VERIFY = "verify"
     GENERATE_FIX = "generate_fix"
+    REVIEW_PR = "review_pr"
 
 
 class JobStatus(str, enum.Enum):
@@ -252,6 +262,9 @@ class Repo(TimestampMixin, Base):
         back_populates="repo", cascade="all, delete-orphan", passive_deletes=True
     )
     findings: Mapped[list[Finding]] = relationship(
+        back_populates="repo", cascade="all, delete-orphan", passive_deletes=True
+    )
+    pr_reviews: Mapped[list[PullRequestReview]] = relationship(
         back_populates="repo", cascade="all, delete-orphan", passive_deletes=True
     )
 
@@ -471,6 +484,49 @@ class Fix(TimestampMixin, Base):
     error: Mapped[str | None] = mapped_column(Text)
 
     finding: Mapped[Finding] = relationship(back_populates="fix")
+
+
+class PullRequestReview(TimestampMixin, Base):
+    """An AI review of one revision of a pull request.
+
+    Unique on (repo_id, pr_number, head_sha): a review is bound to the exact
+    revision it read, so re-requesting a review of an unchanged PR is a no-op
+    while a new push (new head_sha) yields a fresh review.
+
+    ``comments`` holds the grounded inline comments:
+    ``[{"path", "line", "severity", "lens", "body"}]`` — every one already
+    verified to cite a line present in the PR diff. ``lens`` is "code" or
+    "truth", the two review perspectives kept visibly separate in the UI.
+    """
+
+    __tablename__ = "pr_reviews"
+    __table_args__ = (
+        UniqueConstraint(
+            "repo_id", "pr_number", "head_sha", name="uq_pr_reviews_repo_pr_sha"
+        ),
+        Index("ix_pr_reviews_repo_pr", "repo_id", "pr_number"),
+    )
+
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    repo_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("repos.id", ondelete="CASCADE"), nullable=False
+    )
+    pr_number: Mapped[int] = mapped_column(Integer, nullable=False)
+    head_sha: Mapped[str] = mapped_column(String(64), nullable=False)
+    pr_title: Mapped[str | None] = mapped_column(Text)
+    summary: Mapped[str | None] = mapped_column(Text)
+    comments: Mapped[list[dict[str, Any]]] = mapped_column(
+        JSONB, default=list, nullable=False
+    )
+    status: Mapped[ReviewStatus] = mapped_column(
+        _enum(ReviewStatus, "review_status"),
+        default=ReviewStatus.GENERATED,
+        nullable=False,
+    )
+    review_url: Mapped[str | None] = mapped_column(String(512))
+    error: Mapped[str | None] = mapped_column(Text)
+
+    repo: Mapped[Repo] = relationship(back_populates="pr_reviews")
 
 
 class Job(TimestampMixin, Base):

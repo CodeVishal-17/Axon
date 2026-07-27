@@ -17,8 +17,12 @@ import {
   getAvailableRepos,
   getDashboard,
   getMe,
+  getPrReview,
   getRepo,
   listFindings,
+  listPulls,
+  postPrReview,
+  requestPrReview,
   type FindingAction,
   type FindingPage,
   type FindingStatus,
@@ -67,6 +71,90 @@ export function useDashboard(enabled = true) {
     retry: (failureCount, error) => {
       if (error instanceof ApiError && error.status === 401) return false;
       return failureCount < 2;
+    },
+  });
+}
+
+// --- Pull-request review ------------------------------------------------
+
+const PULLS_POLL_ACTIVE_MS = 4000;
+
+export const pullsKey = (repoId: string) => ["pulls", repoId] as const;
+export const reviewKey = (repoId: string, prNumber: number) =>
+  ["pr-review", repoId, prNumber] as const;
+
+/**
+ * Open pull requests. Polls while any review job is in flight (the API
+ * reports `review_pending` per PR), then falls quiet — same cadence
+ * discipline as the Truth Feed.
+ */
+export function usePulls(repoId: string) {
+  return useQuery({
+    queryKey: pullsKey(repoId),
+    queryFn: () => listPulls(repoId),
+    refetchInterval: (query) =>
+      query.state.data?.items.some((pull) => pull.review_pending)
+        ? PULLS_POLL_ACTIVE_MS
+        : false,
+    retry: (failureCount, error) => {
+      if (error instanceof ApiError && [401, 404].includes(error.status))
+        return false;
+      return failureCount < 2;
+    },
+  });
+}
+
+/**
+ * One PR's stored review. A 404 is the normal "not reviewed yet" state, so it
+ * resolves to null instead of erroring. Polls while a review is being
+ * generated so the panel fills in by itself.
+ */
+export function usePrReview(
+  repoId: string,
+  prNumber: number | null,
+  { active = false }: { active?: boolean } = {},
+) {
+  return useQuery({
+    queryKey: reviewKey(repoId, prNumber ?? -1),
+    enabled: prNumber !== null,
+    queryFn: async () => {
+      try {
+        return await getPrReview(repoId, prNumber as number);
+      } catch (error) {
+        if (error instanceof ApiError && error.status === 404) return null;
+        throw error;
+      }
+    },
+    refetchInterval: (query) =>
+      active && !query.state.data ? PULLS_POLL_ACTIVE_MS : false,
+    retry: (failureCount, error) => {
+      if (error instanceof ApiError && [401, 404].includes(error.status))
+        return false;
+      return failureCount < 2;
+    },
+  });
+}
+
+/** Queue an AI review for a pull request. */
+export function useRequestPrReview(repoId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (prNumber: number) => requestPrReview(repoId, prNumber),
+    onSuccess: (_data, prNumber) => {
+      queryClient.invalidateQueries({ queryKey: pullsKey(repoId) });
+      queryClient.invalidateQueries({ queryKey: reviewKey(repoId, prNumber) });
+    },
+  });
+}
+
+/** Publish a stored review to GitHub — the explicit human-in-the-loop click. */
+export function usePostPrReview(repoId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (prNumber: number) => postPrReview(repoId, prNumber),
+    onSuccess: (review, prNumber) => {
+      queryClient.setQueryData(reviewKey(repoId, prNumber), review);
+      queryClient.invalidateQueries({ queryKey: pullsKey(repoId) });
     },
   });
 }

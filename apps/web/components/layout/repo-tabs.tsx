@@ -15,6 +15,7 @@ export function RepoTabs({ repoId }: { repoId: string }) {
 
   const tabs = [
     { label: "Truth Feed", href: base, exact: true },
+    { label: "Pull Requests", href: `${base}/pulls`, exact: false },
     { label: "Map", href: `${base}/map`, exact: false },
     { label: "Ask Axon", href: `${base}/ask`, exact: false },
   ];

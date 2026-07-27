@@ -60,6 +60,14 @@ class Settings(BaseSettings):
     remediation_budget: int = 10
     remediation_min_confidence: float = 0.6
 
+    # --- Pull-request review ---
+    # Comments below this confidence are dropped (same discipline as
+    # remediation); the char cap keeps a huge PR from blowing the context.
+    review_min_confidence: float = 0.6
+    review_max_diff_chars: int = 30_000
+    review_max_files: int = 50
+    review_max_claims: int = 40
+
     # --- LLM provider ---
     llm_provider: str = "openai"  # openai | anthropic
     openai_api_key: str | None = None

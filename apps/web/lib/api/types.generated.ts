@@ -237,6 +237,73 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/repos/{repo_id}/pulls": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Pulls
+         * @description Open pull requests, each annotated with the review state of its
+         *     CURRENT revision (head_sha) so a new push visibly clears the review.
+         */
+        get: operations["list_pulls_api_repos__repo_id__pulls_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/repos/{repo_id}/pulls/{pr_number}/review": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Review
+         * @description The most recent stored review for this pull request.
+         */
+        get: operations["get_review_api_repos__repo_id__pulls__pr_number__review_get"];
+        put?: never;
+        /**
+         * Request Review
+         * @description Enqueue an AI review of this pull request. Deduped: an in-flight job
+         *     for the same PR is not enqueued twice.
+         */
+        post: operations["request_review_api_repos__repo_id__pulls__pr_number__review_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/repos/{repo_id}/pulls/{pr_number}/review/post": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Post Review
+         * @description Publish the stored review to GitHub as the Axon app's bot identity.
+         *     The explicit human-in-the-loop click — Axon never posts on its own.
+         */
+        post: operations["post_review_api_repos__repo_id__pulls__pr_number__review_post_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/webhooks/github": {
         parameters: {
             query?: never;
@@ -560,7 +627,7 @@ export interface components {
          * JobKind
          * @enum {string}
          */
-        JobKind: "ingest" | "verify" | "generate_fix";
+        JobKind: "ingest" | "verify" | "generate_fix" | "review_pr";
         /** JobOut */
         JobOut: {
             /**
@@ -590,6 +657,41 @@ export interface components {
          * @enum {string}
          */
         JobStatus: "pending" | "running" | "succeeded" | "failed";
+        /** PullListOut */
+        PullListOut: {
+            /** Items */
+            items: components["schemas"]["PullOut"][];
+        };
+        /** PullOut */
+        PullOut: {
+            /** Number */
+            number: number;
+            /** Title */
+            title: string;
+            /** Author */
+            author: string | null;
+            /** Head Sha */
+            head_sha: string;
+            /** Draft */
+            draft: boolean;
+            /** Url */
+            url: string;
+            /** Updated At */
+            updated_at: string | null;
+            review_status?: components["schemas"]["ReviewStatus"] | null;
+            /** Review Url */
+            review_url?: string | null;
+            /**
+             * Review Comment Count
+             * @default 0
+             */
+            review_comment_count: number;
+            /**
+             * Review Pending
+             * @default false
+             */
+            review_pending: boolean;
+        };
         /**
          * RepoCreate
          * @description Connect a repository. ``token`` is a fine-grained PAT scoped to the
@@ -672,6 +774,72 @@ export interface components {
              */
             prs_opened: number;
         };
+        /** ReviewCommentOut */
+        ReviewCommentOut: {
+            /** Path */
+            path: string;
+            /** Line */
+            line: number;
+            /**
+             * Lens
+             * @enum {string}
+             */
+            lens: "code" | "truth";
+            /** Severity */
+            severity: string;
+            /** Body */
+            body: string;
+            /** Confidence */
+            confidence?: number | null;
+        };
+        /** ReviewOut */
+        ReviewOut: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Pr Number */
+            pr_number: number;
+            /** Head Sha */
+            head_sha: string;
+            /** Pr Title */
+            pr_title: string | null;
+            /** Summary */
+            summary: string | null;
+            /** Comments */
+            comments: components["schemas"]["ReviewCommentOut"][];
+            status: components["schemas"]["ReviewStatus"];
+            /** Review Url */
+            review_url: string | null;
+            /** Error */
+            error: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /** ReviewRequestResponse */
+        ReviewRequestResponse: {
+            /** Status */
+            status: string;
+            /** Job Id */
+            job_id?: string | null;
+            review?: components["schemas"]["ReviewOut"] | null;
+        };
+        /**
+         * ReviewStatus
+         * @description Lifecycle of an AI review of a pull request. Mirrors FixStatus: the
+         *     review is generated and stored, then posted only on an explicit click.
+         * @enum {string}
+         */
+        ReviewStatus: "generated" | "posted" | "failed";
         /**
          * SimulateRequest
          * @description A canned GitHub-style webhook: same event names, same payload
@@ -814,6 +982,8 @@ export interface operations {
             query?: {
                 code?: string | null;
                 state?: string | null;
+                installation_id?: number | null;
+                setup_action?: string | null;
             };
             header?: never;
             path?: never;
@@ -1091,6 +1261,135 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AvailableReposOut"];
+                };
+            };
+        };
+    };
+    list_pulls_api_repos__repo_id__pulls_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                repo_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PullListOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_review_api_repos__repo_id__pulls__pr_number__review_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                repo_id: string;
+                pr_number: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReviewOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    request_review_api_repos__repo_id__pulls__pr_number__review_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                repo_id: string;
+                pr_number: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReviewRequestResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    post_review_api_repos__repo_id__pulls__pr_number__review_post_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                repo_id: string;
+                pr_number: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReviewOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

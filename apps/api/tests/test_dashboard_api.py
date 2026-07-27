@@ -68,8 +68,13 @@ def _seed_repo_with_history(db: Session, owner: models.User) -> models.Repo:
         owner_id=owner.id,
         ingest_status=models.IngestStatus.READY,
     )
+    doc = models.Entity(
+        repo=repo, kind=models.EntityKind.DOC_SECTION, name="Config",
+        path="README.md#config",
+    )
     claim = models.Claim(
         repo=repo,
+        source_entity=doc,
         statement="The service runs on port 5000.",
         claim_type=models.ClaimType.BEHAVIOR,
         status=models.ClaimStatus.CONTRADICTED,
@@ -91,7 +96,7 @@ def _seed_repo_with_history(db: Session, owner: models.User) -> models.Repo:
         severity=models.FindingSeverity.MEDIUM, explanation="drift3",
         evidence={}, status=models.FindingStatus.OPEN,
     )
-    db.add_all([repo, claim, f_open, f_actioned, f_blocked])
+    db.add_all([repo, doc, claim, f_open, f_actioned, f_blocked])
     db.flush()
     db.add_all([
         models.Fix(

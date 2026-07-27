@@ -94,6 +94,40 @@ class CommitInfo:
 
 
 @dataclass(frozen=True)
+class PullRequestInfo:
+    """An open pull request — review target metadata.
+
+    ``head_sha`` identifies the exact revision a review applies to: a new push
+    changes it, which is what makes a stored review re-generatable.
+    """
+
+    number: int
+    title: str
+    body: str
+    author: str | None
+    head_sha: str
+    base_branch: str
+    draft: bool
+    url: str
+    updated_at: datetime | None
+
+
+@dataclass(frozen=True)
+class PullRequestFile:
+    """One file changed by a pull request, with its unified-diff patch.
+
+    ``patch`` is None for binary/too-large files (GitHub omits it); such files
+    carry no reviewable lines, so the grounding gate rejects comments on them.
+    """
+
+    path: str
+    status: str  # added | modified | removed | renamed
+    additions: int
+    deletions: int
+    patch: str | None
+
+
+@dataclass(frozen=True)
 class NormalizedEvent:
     """A provider-agnostic reality/belief change notification.
 

@@ -1,0 +1,117 @@
+name: CI
+
+# Replaces the Django starter template, which could never pass here: Axon is
+# FastAPI (no manage.py), its requirements live under apps/api/, and the code
+# needs Python 3.12 for `X | Y` annotations and datetime.UTC.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  # A new push supersedes an in-flight run for the same ref.
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: backend (lint + tests)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/api
+
+    services:
+      postgres:
+        # pgvector, not plain postgres: models.py creates the `vector`
+        # extension, and claims.embedding is a Vector(1536) column.
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: axon
+          POSTGRES_PASSWORD: axon
+          POSTGRES_DB: axon
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U axon -d axon"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 20
+
+    env:
+      DATABASE_URL: postgresql+psycopg://axon:axon@localhost:5432/axon
+      # No LLM or GitHub credentials in CI on purpose: every test that needs
+      # them stubs them, and their absence proves the keyless paths work.
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: |
+            apps/api/requirements.txt
+            apps/api/requirements-dev.txt
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt -r requirements-dev.txt
+
+      - name: Lint
+        run: ruff check .
+
+      # Mirrors entrypoint.sh. The migration chain does NOT bootstrap an empty
+      # database — its first revision only adds a constraint to an existing
+      # `events` table — so a fresh DB is created from the models and stamped,
+      # exactly as the container does. This proves the real startup path works
+      # and that every revision at least loads; it does not replay migrations
+      # from scratch, because production never does either.
+      - name: Database bootstrap (mirrors entrypoint.sh)
+        run: |
+          python - <<'PY'
+          from sqlalchemy import inspect
+          from axon.db import models  # noqa: F401 — registers the tables
+          from axon.db.base import Base
+          from axon.db.session import get_engine
+
+          engine = get_engine()
+          if not inspect(engine).has_table("events"):
+              Base.metadata.create_all(engine)
+              print("fresh database: schema created from models")
+          PY
+          alembic stamp head
+          alembic upgrade head
+
+      - name: Tests
+        run: pytest -q
+
+  frontend:
+    name: frontend (types + lint + build)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/web
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck
+        run: npx tsc --noEmit
+
+      - name: Lint
+        run: npx eslint app components lib
+
+      - name: Build
+        run: npm run build

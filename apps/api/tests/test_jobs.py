@@ -116,6 +116,10 @@ def test_retry_then_permanent_failure(db: Session) -> None:
         db.commit()
         claimed = queue.claim_next(db)
         assert claimed is not None, f"attempt {attempt} should be claimable"
+        # Identity first: claim_next takes the next claimable job in the whole
+        # queue, so a stray row from another module would otherwise surface as
+        # a baffling attempts mismatch rather than "that isn't my job".
+        assert claimed.id == job.id, "claimed a job this test did not enqueue"
         assert claimed.attempts == attempt
         queue.mark_failed(db, claimed.id, f"boom {attempt}")
 
@@ -128,7 +132,11 @@ def test_retry_then_permanent_failure(db: Session) -> None:
         else:
             assert fresh.status == models.JobStatus.FAILED  # budget exhausted
 
-    assert queue.claim_next(db) is None  # failed jobs are never re-claimed
+    # The point is that THIS job is never handed out again. Asserting the
+    # whole queue is empty made the test depend on what every other module
+    # left behind, which is how it earned its intermittent failures.
+    again = queue.claim_next(db)
+    assert again is None or again.id != job.id, "a failed job was re-claimed"
 
 
 # --- crash recovery: stale-lock reclaim -----------------------------------

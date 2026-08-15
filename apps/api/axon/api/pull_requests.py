@@ -19,7 +19,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from axon.adapters.base import AdapterError
-from axon.api.auth import authorize_repo, optional_user
+from axon.api.auth import authorize_repo, current_user
 from axon.db.models import (
     Job,
     JobKind,
@@ -148,6 +148,52 @@ def _in_flight_review_job(db: Session, repo_id: uuid.UUID, pr_number: int) -> Jo
     ).first()
 
 
+def _reviews_by_pr(
+    db: Session, repo_id: uuid.UUID, heads: dict[int, str]
+) -> dict[int, PullRequestReview]:
+    """Reviews for the CURRENT revision of each listed PR, in one query.
+
+    Listing used to run two queries per pull request; a 30-PR repo therefore
+    issued 60 round-trips to render one page.
+    """
+    if not heads:
+        return {}
+    rows = db.scalars(
+        select(PullRequestReview).where(
+            PullRequestReview.repo_id == repo_id,
+            PullRequestReview.pr_number.in_(heads),
+        )
+    ).all()
+    return {
+        r.pr_number: r for r in rows if heads.get(r.pr_number) == r.head_sha
+    }
+
+
+def _in_flight_pr_numbers(
+    db: Session, repo_id: uuid.UUID, pr_numbers: list[int]
+) -> set[int]:
+    """PR numbers with a queued/running review job, in one query."""
+    if not pr_numbers:
+        return set()
+    rows = db.scalars(
+        select(Job.payload["pr_number"].astext).where(
+            Job.kind == JobKind.REVIEW_PR,
+            Job.status.in_((JobStatus.PENDING, JobStatus.RUNNING)),
+            Job.payload["repo_id"].astext == str(repo_id),
+        )
+    ).all()
+    wanted = set(pr_numbers)
+    found: set[int] = set()
+    for raw in rows:
+        try:
+            number = int(raw)
+        except (TypeError, ValueError):
+            continue
+        if number in wanted:
+            found.add(number)
+    return found
+
+
 # --- Endpoints -----------------------------------------------------------
 
 
@@ -156,7 +202,7 @@ def list_pulls(
     repo_id: uuid.UUID,
     limit: int = Query(default=30, ge=1, le=100),
     db: Session = Depends(get_db),
-    user: User | None = Depends(optional_user),
+    user: User = Depends(current_user),
 ) -> PullListOut:
     """Open pull requests, each annotated with the review state of its
     CURRENT revision (head_sha) so a new push visibly clears the review."""
@@ -172,10 +218,14 @@ def list_pulls(
             status_code=502, detail=f"GitHub unavailable: {exc}"
         ) from exc
 
+    # Two bulk queries for the whole page, not two per pull request.
+    heads = {pull.number: pull.head_sha for pull in pulls}
+    reviews = _reviews_by_pr(db, repo.id, heads)
+    in_flight = _in_flight_pr_numbers(db, repo.id, list(heads))
+
     items: list[PullOut] = []
     for pull in pulls:
-        review = _find_review(db, repo, pull.number, pull.head_sha)
-        pending = _in_flight_review_job(db, repo.id, pull.number)
+        review = reviews.get(pull.number)
         items.append(
             PullOut(
                 number=pull.number,
@@ -188,7 +238,7 @@ def list_pulls(
                 review_status=review.status if review else None,
                 review_url=review.review_url if review else None,
                 review_comment_count=len(review.comments or []) if review else 0,
-                review_pending=pending is not None,
+                review_pending=pull.number in in_flight,
             )
         )
     return PullListOut(items=items)
@@ -202,7 +252,7 @@ def request_review(
     repo_id: uuid.UUID,
     pr_number: int,
     db: Session = Depends(get_db),
-    user: User | None = Depends(optional_user),
+    user: User = Depends(current_user),
 ) -> ReviewRequestResponse:
     """Enqueue an AI review of this pull request. Deduped: an in-flight job
     for the same PR is not enqueued twice."""
@@ -225,7 +275,7 @@ def get_review(
     repo_id: uuid.UUID,
     pr_number: int,
     db: Session = Depends(get_db),
-    user: User | None = Depends(optional_user),
+    user: User = Depends(current_user),
 ) -> ReviewOut:
     """The most recent stored review for this pull request."""
     repo = _repo_for(db, repo_id, user)
@@ -244,7 +294,7 @@ def post_review(
     repo_id: uuid.UUID,
     pr_number: int,
     db: Session = Depends(get_db),
-    user: User | None = Depends(optional_user),
+    user: User = Depends(current_user),
 ) -> ReviewOut:
     """Publish the stored review to GitHub as the Axon app's bot identity.
     The explicit human-in-the-loop click — Axon never posts on its own."""

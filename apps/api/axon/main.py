@@ -11,6 +11,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 
 from axon import __version__
 from axon.api.auth import router as auth_router
@@ -20,6 +21,7 @@ from axon.api.github import router as github_router
 from axon.api.health import router as health_router
 from axon.api.pull_requests import router as pull_requests_router
 from axon.api.repos import router as repos_router
+from axon.api.security import RateLimitMiddleware, SecurityHeadersMiddleware
 from axon.api.webhooks import router as webhooks_router
 from axon.config import get_settings
 from axon.db.session import dispose_engine
@@ -48,22 +50,44 @@ def create_app() -> FastAPI:
         format="%(asctime)s %(levelname)s %(name)s %(message)s",
     )
 
+    # The interactive docs enumerate every route and schema — a free map of
+    # the attack surface. They stay on in development (they feed `make types`
+    # and are the demo-day console) and are withdrawn in production, where the
+    # schema is generated from a checked-out tree, not scraped from the
+    # running service. Override with EXPOSE_DOCS=true if you accept the risk.
+    docs_enabled = settings.expose_docs or not settings.is_production
     app = FastAPI(
         title=settings.app_name,
         version=__version__,
         lifespan=lifespan,
-        # OpenAPI/docs stay enabled in all environments for now: the schema
-        # feeds frontend type generation (T0.5) and /docs is the demo-day
-        # debugging console.
+        docs_url="/docs" if docs_enabled else None,
+        redoc_url="/redoc" if docs_enabled else None,
+        openapi_url="/openapi.json" if docs_enabled else None,
     )
 
+    # Order matters: middleware added last runs first. Rate limiting should
+    # reject a flood before anything else does work for it.
+    app.add_middleware(SecurityHeadersMiddleware)
+    # Compresses the findings/entities payloads, which are the large ones.
+    app.add_middleware(GZipMiddleware, minimum_size=1024)
     app.add_middleware(
         CORSMiddleware,
+        # Explicit origins only. With allow_credentials the browser rejects
+        # "*", but an accidental wildcard here would still hand the session
+        # cookie to any site, so the value is validated in config.
         allow_origins=settings.cors_origin_list,
         allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
+        allow_methods=["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
+        allow_headers=["Content-Type", "Authorization", "X-Axon-Simulate-Secret"],
+        max_age=600,
     )
+    if settings.rate_limit_enabled:
+        app.add_middleware(
+            RateLimitMiddleware,
+            default_limit=settings.rate_limit_default,
+            sensitive_limit=settings.rate_limit_sensitive,
+            window_s=settings.rate_limit_window_s,
+        )
 
     app.include_router(health_router)
     app.include_router(auth_router)

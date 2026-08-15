@@ -330,7 +330,15 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Simulate Event */
+        /**
+         * Simulate Event
+         * @description Inject a synthetic reality event (demo/debug surface).
+         *
+         *     This drives real ingest/verify work, so it is gated twice: the caller must
+         *     be signed in AND own the repository. The shared secret is an additional
+         *     lock when configured — and in production it is mandatory, because an
+         *     unconfigured secret used to skip the check entirely.
+         */
         post: operations["simulate_event_api_repos__repo_id__simulate_event_post"];
         delete?: never;
         options?: never;

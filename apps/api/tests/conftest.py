@@ -54,6 +54,67 @@ def pytest_collection_modifyitems(config, items) -> None:
             item.add_marker(skip)
 
 
+def authenticate(app, user) -> None:
+    """Make a TestClient built on ``app`` act as ``user``.
+
+    Repo-scoped endpoints require a session, so endpoint tests must say who
+    they are. Overriding the dependencies is preferred over minting a real
+    cookie: it keeps the tests about the endpoint under test rather than
+    about OAuth.
+    """
+    from axon.api.auth import current_user, optional_user  # noqa: PLC0415
+
+    app.dependency_overrides[current_user] = lambda: user
+    app.dependency_overrides[optional_user] = lambda: user
+
+
+def get_or_create_user(session, login: str, github_id: int):
+    """A stable test user, reused across runs in the same database."""
+    from sqlalchemy import select  # noqa: PLC0415
+
+    from axon.db.models import User  # noqa: PLC0415
+
+    user = session.scalar(select(User).where(User.login == login))
+    if user is None:
+        user = User(github_id=github_id, login=login)
+        session.add(user)
+        session.commit()
+    return user
+
+
+@pytest.fixture()
+def authed_app(monkeypatch):
+    """An app whose requests are authenticated as a stable test user.
+
+    Repo-scoped endpoints require a session, so endpoint tests need an
+    identity. Rate limiting is off here: these tests exercise endpoints, not
+    the limiter (which has its own tests in test_security.py).
+    """
+    from sqlalchemy.orm import Session  # noqa: PLC0415
+
+    from axon.api.auth import current_user, optional_user  # noqa: PLC0415
+    from axon.db import Base  # noqa: PLC0415
+    from axon.db.models import User  # noqa: PLC0415
+    from axon.main import create_app  # noqa: PLC0415
+
+    monkeypatch.setenv("RATE_LIMIT_ENABLED", "false")
+    get_settings.cache_clear()
+
+    Base.metadata.create_all(get_engine())
+    with Session(get_engine(), expire_on_commit=False) as setup:
+        user_id = get_or_create_user(setup, "axon-test-shared", 900_000).id
+
+    def _user():
+        with Session(get_engine(), expire_on_commit=False) as session:
+            return session.get(User, user_id)
+
+    app = create_app()
+    app.dependency_overrides[current_user] = _user
+    app.dependency_overrides[optional_user] = _user
+    yield app
+    app.dependency_overrides.clear()
+
+
 @pytest.fixture(autouse=True)
 def _isolate_settings_cache():
     """``get_settings`` is process-wide and lru_cached. A test that patches the

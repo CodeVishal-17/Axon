@@ -126,10 +126,21 @@ def optional_user(request: Request, db: Session = Depends(get_db)) -> User | Non
 
 
 def authorize_repo(repo: Repo, user: User | None) -> None:
-    """Enforce repo ownership on reads. Legacy null-owner repos stay accessible
-    to anyone (demo continuity); an owned repo is private to its owner. Raises
-    404 (not 403) on mismatch so we don't leak that the repo exists."""
-    if repo.owner_id is not None and (user is None or repo.owner_id != user.id):
+    """Enforce repo OWNERSHIP. Authentication is enforced upstream by the
+    ``current_user`` dependency, so callers reach here already signed in.
+
+    Repo-scoped endpoints expose a private repository's paths, documentation
+    and findings, and through the action endpoints the ability to open pull
+    requests on it — so an owned repo is visible only to its owner. A repo
+    with no owner predates authentication; it stays readable to any signed-in
+    user so existing installs keep working, and is claimed by the first user
+    to reconnect it.
+
+    Raises 404 (never 403) so the response cannot be used to probe which
+    repository ids exist. A defensive 404 also covers user=None, in case a
+    future endpoint forgets the dependency.
+    """
+    if user is None or (repo.owner_id is not None and repo.owner_id != user.id):
         raise HTTPException(status_code=404, detail="repository not found")
 
 
@@ -200,6 +211,7 @@ def github_callback(
             value=create_session_token(user),
             httponly=True,
             samesite="lax",
+            secure=settings.cookie_secure,
             max_age=settings.session_ttl_hours * 3600,
             path="/",
         )
@@ -224,7 +236,15 @@ def me(user: User = Depends(current_user)) -> UserOut:
 def logout() -> JSONResponse:
     # JSON (not a redirect): the SPA clears its own client state on success.
     response = JSONResponse({"ok": True})
-    response.delete_cookie(SESSION_COOKIE, path="/")
+    # Attributes must match the ones the cookie was SET with, or the browser
+    # keeps the original and the "logout" is cosmetic.
+    response.delete_cookie(
+        SESSION_COOKIE,
+        path="/",
+        httponly=True,
+        samesite="lax",
+        secure=get_settings().cookie_secure,
+    )
     return response
 
 

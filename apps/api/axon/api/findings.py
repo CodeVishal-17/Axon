@@ -18,7 +18,7 @@ from pydantic import BaseModel, ConfigDict
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session, joinedload
 
-from axon.api.auth import authorize_repo, optional_user
+from axon.api.auth import authorize_repo, current_user
 from axon.db.models import (
     Claim,
     ClaimStatus,
@@ -154,7 +154,7 @@ def list_findings(
     limit: int = Query(default=50, ge=1, le=200),
     offset: int = Query(default=0, ge=0),
     db: Session = Depends(get_db),
-    user: User | None = Depends(optional_user),
+    user: User = Depends(current_user),
 ) -> FindingPage:
     """Findings for the Truth Feed, newest first. ``status`` defaults to
     open (pass explicitly to see actioned/dismissed history)."""
@@ -204,7 +204,7 @@ def finding_action(
     finding_id: uuid.UUID,
     body: FindingActionRequest,
     db: Session = Depends(get_db),
-    user: User | None = Depends(optional_user),
+    user: User = Depends(current_user),
 ) -> FindingActionResponse:
     """Human-in-the-loop actions on a finding (architecture §12: writes to
     customer repos happen only behind an explicit click)."""

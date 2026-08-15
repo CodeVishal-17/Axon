@@ -7,16 +7,33 @@ from fastapi.testclient import TestClient
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from axon.api.auth import current_user, optional_user
 from axon.db import Base, models
 from axon.db.session import get_engine
 from axon.main import create_app
+from tests.conftest import get_or_create_user
 
 
 @pytest.fixture(scope="module")
 def client():
+    """Signed in: findings endpoints expose repository contents, so they
+    require a session (see tests/test_security.py)."""
     Base.metadata.create_all(get_engine())
-    with TestClient(create_app()) as test_client:
+    with Session(get_engine(), expire_on_commit=False) as setup:
+        user = get_or_create_user(setup, "axon-test-findings", 920_001)
+        user_id = user.id
+
+    app = create_app()
+
+    def _user():
+        with Session(get_engine(), expire_on_commit=False) as session:
+            return session.get(models.User, user_id)
+
+    app.dependency_overrides[current_user] = _user
+    app.dependency_overrides[optional_user] = _user
+    with TestClient(app) as test_client:
         yield test_client
+    app.dependency_overrides.clear()
 
 
 @pytest.fixture()

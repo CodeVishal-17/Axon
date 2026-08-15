@@ -111,6 +111,19 @@ class Settings(BaseSettings):
     session_secret: str | None = None
     session_ttl_hours: int = 720  # 30 days
     web_base_url: str = "http://localhost:3000"
+    # Send the session cookie only over TLS. Defaults on in production; set
+    # false ONLY for a plain-http deployment (a demo box on a bare IP), and
+    # understand that the cookie is then sniffable in transit.
+    session_cookie_secure: bool | None = None
+
+    # --- Hardening ---
+    # Interactive docs enumerate every route; withheld in production unless
+    # explicitly re-enabled.
+    expose_docs: bool = False
+    rate_limit_enabled: bool = True
+    rate_limit_window_s: int = 60
+    rate_limit_default: int = 240      # generous: the UI polls
+    rate_limit_sensitive: int = 30     # auth + LLM-spending endpoints
 
     @property
     def github_oauth_configured(self) -> bool:
@@ -122,12 +135,38 @@ class Settings(BaseSettings):
 
     @property
     def cors_origin_list(self) -> list[str]:
-        """CORS origins parsed into the list shape CORSMiddleware expects."""
-        return [origin.strip() for origin in self.cors_origins.split(",") if origin.strip()]
+        """CORS origins parsed into the list shape CORSMiddleware expects.
+
+        A wildcard is dropped: the API is served with credentials, and
+        ``allow_origins=["*"]`` together with ``allow_credentials=True`` would
+        hand the session cookie to any site that asks. Browsers reject that
+        combination, but silently — so it is refused here where it is visible.
+        """
+        origins = [
+            origin.strip()
+            for origin in self.cors_origins.split(",")
+            if origin.strip()
+        ]
+        safe = [origin for origin in origins if origin != "*"]
+        if len(safe) != len(origins):
+            import logging  # noqa: PLC0415
+
+            logging.getLogger("axon.config").error(
+                "CORS_ORIGINS contains '*', which cannot be combined with "
+                "credentialed requests — ignoring it. List real origins."
+            )
+        return safe
 
     @property
     def is_production(self) -> bool:
         return self.environment == "production"
+
+    @property
+    def cookie_secure(self) -> bool:
+        """Whether the session cookie carries the Secure flag."""
+        if self.session_cookie_secure is not None:
+            return self.session_cookie_secure
+        return self.is_production
 
 
 @lru_cache(maxsize=1)

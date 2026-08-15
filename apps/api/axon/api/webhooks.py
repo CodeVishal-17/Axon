@@ -27,8 +27,9 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from axon.adapters.github.adapter import GitHubAdapter
+from axon.api.auth import authorize_repo, current_user
 from axon.config import get_settings
-from axon.db.models import Repo
+from axon.db.models import Repo, User
 from axon.db.session import get_db
 from axon.services.events import EventService, IngestOutcome
 
@@ -45,9 +46,20 @@ class EventAccepted(BaseModel):
 
 def _verify_signature(secret: str | None, body: bytes, signature: str | None) -> None:
     if not secret:
+        # Fail CLOSED in production. An unset secret used to mean "accept
+        # anything", which let anyone forge deliveries and drive ingest/verify
+        # work against any repository. Unsigned deliveries remain accepted in
+        # development, where the endpoint is exercised by hand.
+        if get_settings().is_production:
+            logger.error(
+                "refusing webhook: GITHUB_WEBHOOK_SECRET is not configured"
+            )
+            raise HTTPException(
+                status_code=503, detail="webhook receiver is not configured"
+            )
         logger.warning(
             "GITHUB_WEBHOOK_SECRET is not set — accepting UNSIGNED webhook "
-            "delivery (dev only; configure the secret in production)"
+            "delivery (development only)"
         )
         return
     if not signature or not signature.startswith("sha256="):
@@ -116,17 +128,31 @@ def simulate_event(
     repo_id: uuid.UUID,
     body: SimulateRequest,
     db: Session = Depends(get_db),
+    user: User = Depends(current_user),
     x_axon_simulate_secret: str | None = Header(default=None),
 ) -> EventAccepted:
+    """Inject a synthetic reality event (demo/debug surface).
+
+    This drives real ingest/verify work, so it is gated twice: the caller must
+    be signed in AND own the repository. The shared secret is an additional
+    lock when configured — and in production it is mandatory, because an
+    unconfigured secret used to skip the check entirely.
+    """
     settings = get_settings()
-    if settings.simulate_shared_secret and not hmac.compare_digest(
-        x_axon_simulate_secret or "", settings.simulate_shared_secret
-    ):
-        raise HTTPException(status_code=403, detail="invalid simulate secret")
+    if settings.simulate_shared_secret:
+        if not hmac.compare_digest(
+            x_axon_simulate_secret or "", settings.simulate_shared_secret
+        ):
+            raise HTTPException(status_code=403, detail="invalid simulate secret")
+    elif settings.is_production:
+        raise HTTPException(
+            status_code=403, detail="event simulation is disabled"
+        )
 
     repo = db.get(Repo, repo_id)
     if repo is None:
         raise HTTPException(status_code=404, detail="repository not found")
+    authorize_repo(repo, user)
 
     normalized = GitHubAdapter.normalize_webhook(
         body.event,

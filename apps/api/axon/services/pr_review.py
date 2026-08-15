@@ -34,13 +34,12 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 from sqlalchemy import select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from axon.adapters.base import PullRequestFile, PullRequestInfo
 from axon.config import get_settings
 from axon.db.models import (
     Claim,
-    Entity,
     Event,
     PullRequestReview,
     Repo,
@@ -277,22 +276,22 @@ class PRReviewService:
         plan = ScopedVerificationPlanner(self.db).plan(repo, Event(payload={}), paths)
         if not plan.impacted_claim_ids:
             return []
+        # joinedload: the source entity is needed for every row, so fetch it
+        # with the claims instead of issuing one SELECT per claim.
         rows = self.db.scalars(
             select(Claim)
+            .options(joinedload(Claim.source_entity))
             .where(Claim.id.in_(plan.impacted_claim_ids))
             .limit(settings.review_max_claims)
         ).all()
-        claims: list[dict] = []
-        for claim in rows:
-            source = self.db.get(Entity, claim.source_entity_id)
-            claims.append(
-                {
-                    "statement": claim.statement,
-                    "status": claim.status.value,
-                    "source": source.path if source else None,
-                }
-            )
-        return claims
+        return [
+            {
+                "statement": claim.statement,
+                "status": claim.status.value,
+                "source": claim.source_entity.path if claim.source_entity else None,
+            }
+            for claim in rows
+        ]
 
     @staticmethod
     def _render_files(

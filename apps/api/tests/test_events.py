@@ -21,7 +21,6 @@ from sqlalchemy.orm import Session
 from axon.adapters.github.adapter import GitHubAdapter
 from axon.db import Base, models
 from axon.db.session import get_engine
-from axon.main import create_app
 from axon.services.events import EventService, ScopedVerificationPlanner
 from axon.services.verification import DriftVerifier
 from tests.conftest import requires_db
@@ -85,9 +84,10 @@ def db():
 
 
 @pytest.fixture()
-def client():
-    Base.metadata.create_all(get_engine())
-    with TestClient(create_app()) as test_client:
+def client(authed_app):
+    """Signed in: /simulate-event drives real ingest/verify work, so it now
+    requires a session and repo ownership (see tests/test_security.py)."""
+    with TestClient(authed_app) as test_client:
         yield test_client
 
 

@@ -24,7 +24,7 @@ from sqlalchemy.orm import Session
 
 from axon.adapters.base import AuthenticationError, RepositoryNotFoundError
 from axon.adapters.github.adapter import GitHubAdapter
-from axon.api.auth import authorize_repo, current_user, optional_user
+from axon.api.auth import authorize_repo, current_user
 from axon.db.models import (
     Entity,
     EntityKind,
@@ -225,7 +225,7 @@ def connect_repo(
 def get_repo(
     repo_id: uuid.UUID,
     db: Session = Depends(get_db),
-    user: User | None = Depends(optional_user),
+    user: User = Depends(current_user),
 ) -> RepoDetail:
     """Repository metadata + ingest status + latest job + entity counts."""
     repo = _get_repo(db, repo_id)
@@ -243,7 +243,7 @@ def list_entities(
     limit: int = Query(default=50, ge=1, le=200),
     offset: int = Query(default=0, ge=0),
     db: Session = Depends(get_db),
-    user: User | None = Depends(optional_user),
+    user: User = Depends(current_user),
 ) -> EntityPage:
     """Paginated entity listing with kind filter, sort, and name/path search.
 

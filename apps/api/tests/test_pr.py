@@ -16,7 +16,6 @@ from sqlalchemy.orm import Session
 
 from axon.db import Base, models
 from axon.db.session import get_engine
-from axon.main import create_app
 from axon.services.pr import (
     GitHubPRService,
     apply_replacement,
@@ -358,9 +357,8 @@ def test_issue_target_and_failed_fix_are_not_prable(db: Session) -> None:
 
 
 @requires_db
-def test_action_endpoint_enqueues_and_guards(db: Session) -> None:
-    Base.metadata.create_all(get_engine())
-    with TestClient(create_app()) as client:
+def test_action_endpoint_enqueues_and_guards(db: Session, authed_app) -> None:
+    with TestClient(authed_app) as client:
         repo, finding, fix = _seed(db)
         response = client.post(
             f"/api/findings/{finding.id}/action", json={"action": "generate_fix"}

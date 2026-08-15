@@ -22,9 +22,21 @@ from axon.jobs.worker import Worker
 
 @pytest.fixture()
 def db():
+    """A session whose queue is empty on ENTRY as well as on exit.
+
+    These tests reason about the queue globally — "claim the next job",
+    "nothing is claimable now" — so they are only meaningful starting from an
+    empty table. Cleaning up on the way out was not enough: earlier modules
+    leave their own jobs behind (measured: test_events, test_findings_api,
+    test_pull_requests_api and test_remediation all do), and a due, PENDING
+    row from one of them is indistinguishable from this module's own work.
+    Draining on entry makes every test here independent of collection order.
+    """
     engine = get_engine()
     Base.metadata.create_all(engine)
     session = Session(engine, expire_on_commit=False)
+    session.execute(text("DELETE FROM jobs"))
+    session.commit()
     yield session
     session.rollback()
     session.execute(text("DELETE FROM jobs"))
@@ -33,8 +45,18 @@ def db():
 
 
 def _drain_jobs(db: Session) -> None:
+    """Empty the queue, and PROVE it is empty.
+
+    These tests reason about the whole queue ("claim the next job", "nothing
+    is claimable now"), so a single row left behind by another module changes
+    what they mean. A module once leaked a due, pending verify job here; the
+    assertion turns that from an intermittent, far-away failure into an
+    immediate one naming the culprit.
+    """
     db.execute(text("DELETE FROM jobs"))
     db.commit()
+    remaining = db.execute(text("SELECT count(*) FROM jobs")).scalar()
+    assert remaining == 0, f"queue not empty after drain: {remaining} row(s) leaked"
 
 
 # --- enqueue + claim transitions -----------------------------------------
@@ -109,9 +131,16 @@ def test_retry_then_permanent_failure(db: Session) -> None:
     job = queue.enqueue(db, models.JobKind.INGEST, {"n": 1})
 
     for attempt in range(1, max_attempts + 1):
-        # make any backoff from the previous failure due now
+        # Make the previous failure's backoff due. Deliberately well in the
+        # past rather than `now()`: the row would be stamped with POSTGRES's
+        # clock while claim_next() filters on `run_at <= _now()` using
+        # PYTHON's. Those clocks agree here to about 1.5 ms, which is inside
+        # the host timer's granularity — a margin thin enough to lose. Backing
+        # the timestamp off removes the dependency entirely without changing
+        # what the test asserts.
         db.execute(
-            text("UPDATE jobs SET run_at = now() WHERE id = :id"), {"id": job.id}
+            text("UPDATE jobs SET run_at = now() - interval '1 hour' WHERE id = :id"),
+            {"id": job.id},
         )
         db.commit()
         claimed = queue.claim_next(db)
@@ -132,11 +161,7 @@ def test_retry_then_permanent_failure(db: Session) -> None:
         else:
             assert fresh.status == models.JobStatus.FAILED  # budget exhausted
 
-    # The point is that THIS job is never handed out again. Asserting the
-    # whole queue is empty made the test depend on what every other module
-    # left behind, which is how it earned its intermittent failures.
-    again = queue.claim_next(db)
-    assert again is None or again.id != job.id, "a failed job was re-claimed"
+    assert queue.claim_next(db) is None  # failed jobs are never re-claimed
 
 
 # --- crash recovery: stale-lock reclaim -----------------------------------

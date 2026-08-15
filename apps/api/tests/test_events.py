@@ -75,10 +75,22 @@ def db():
             select(models.Repo).where(models.Repo.full_name.like("axon-test/%"))
         ):
             session.delete(repo)
+        # Commit the repo deletions FIRST so their ON DELETE CASCADE has
+        # actually removed the events before the next statement looks for them.
+        session.commit()
+
+        # Two bugs lived in this one statement. `coalesce` is load-bearing: a
+        # verify job's payload is {"event_id": ...} with NO repo_id, so
+        # `payload->>'repo_id'` was NULL, `NULL NOT IN (...)` evaluates to NULL
+        # rather than TRUE, and the ANDed predicate therefore never matched.
+        # And running it before the commit above meant the subquery still saw
+        # the not-yet-cascaded events. Together they silently left a PENDING,
+        # already-due verify job in the shared jobs table for every module that
+        # ran afterwards.
         session.execute(text(
-            "DELETE FROM jobs WHERE (payload->>'repo_id') NOT IN "
-            "(SELECT id::text FROM repos) AND (payload->>'event_id') NOT IN "
-            "(SELECT id::text FROM events)"
+            "DELETE FROM jobs WHERE "
+            "coalesce(payload->>'repo_id', '') NOT IN (SELECT id::text FROM repos) "
+            "AND coalesce(payload->>'event_id', '') NOT IN (SELECT id::text FROM events)"
         ))
         session.commit()
 

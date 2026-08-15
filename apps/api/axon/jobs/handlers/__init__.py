@@ -22,7 +22,7 @@ class UnknownJobKind(RuntimeError):
 
 
 def get_handler(kind: JobKind) -> Handler:
-    from axon.jobs.handlers import generate_fix, ingest, review_pr, verify
+    from axon.jobs.handlers import generate_fix, ingest, review_pr, verify  # noqa: PLC0415
 
     registry: dict[JobKind, Handler] = {
         JobKind.INGEST: ingest.run,

@@ -10,9 +10,10 @@ import json
 import uuid
 
 import pytest
-from sqlalchemy import select, text
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from axon.config import get_settings
 from axon.db import Base, models
 from axon.db.session import get_engine
 from axon.services.linking import (
@@ -23,6 +24,7 @@ from axon.services.linking import (
     link_by_path,
     link_by_symbol,
 )
+from tests.conftest import requires_db
 
 EMBED_DIM = models.EMBEDDING_DIM
 
@@ -112,21 +114,6 @@ def test_symbol_tier_ambiguity_guard() -> None:
 
 
 # --- DB-backed service ----------------------------------------------------
-
-
-def _db_available() -> bool:
-    try:
-        with get_engine().connect() as conn:
-            conn.execute(text("SELECT 1"))
-        return True
-    except Exception:
-        return False
-
-
-requires_db = pytest.mark.skipif(
-    not _db_available(),
-    reason="Postgres not reachable — start it with `docker compose up -d db`",
-)
 
 
 @pytest.fixture()
@@ -335,7 +322,15 @@ def test_relink_when_inventory_changes(db: Session) -> None:
 
 
 @requires_db
-def test_keyless_runs_deterministic_tiers_only(db: Session) -> None:
+def test_keyless_runs_deterministic_tiers_only(
+    db: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Force the keyless environment this test is about. Without this the
+    # assertions depend on whether the developer's .env happens to carry an
+    # OPENAI_API_KEY — which made the test fail for the wrong reason.
+    monkeypatch.setenv("OPENAI_API_KEY", "")
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "")
+    get_settings.cache_clear()
     axis = _axis(3) + [0.0] * (EMBED_DIM - 8)
     repo = _seed(
         db,

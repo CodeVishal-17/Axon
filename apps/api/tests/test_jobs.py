@@ -7,8 +7,7 @@ stubbed handler registry. The live process-kill drill is
 scripts/worker_smoke.py.
 """
 
-import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import pytest
 from sqlalchemy import select, text
@@ -17,23 +16,8 @@ from sqlalchemy.orm import Session
 from axon.db import Base, models
 from axon.db.session import get_engine
 from axon.jobs import queue
-from axon.jobs.handlers import UnknownJobKind, get_handler
+from axon.jobs.handlers import get_handler
 from axon.jobs.worker import Worker
-
-
-def _db_available() -> bool:
-    try:
-        with get_engine().connect() as conn:
-            conn.execute(text("SELECT 1"))
-        return True
-    except Exception:
-        return False
-
-
-pytestmark = pytest.mark.skipif(
-    not _db_available(),
-    reason="Postgres not reachable — start it with `docker compose up -d db`",
-)
 
 
 @pytest.fixture()
@@ -78,7 +62,7 @@ def test_future_jobs_not_claimed(db: Session) -> None:
     queue.enqueue(
         db,
         models.JobKind.INGEST,
-        run_at=datetime.now(timezone.utc) + timedelta(hours=1),
+        run_at=datetime.now(UTC) + timedelta(hours=1),
     )
     assert queue.claim_next(db) is None
 
@@ -119,7 +103,7 @@ def test_skip_locked_prevents_duplicate_claim(db: Session) -> None:
 
 def test_retry_then_permanent_failure(db: Session) -> None:
     _drain_jobs(db)
-    from axon.config import get_settings
+    from axon.config import get_settings  # noqa: PLC0415
 
     max_attempts = get_settings().job_max_attempts
     job = queue.enqueue(db, models.JobKind.INGEST, {"n": 1})
@@ -140,7 +124,7 @@ def test_retry_then_permanent_failure(db: Session) -> None:
         assert fresh.error == f"boom {attempt}"  # errors persisted
         if attempt < max_attempts:
             assert fresh.status == models.JobStatus.PENDING  # retry scheduled
-            assert fresh.run_at > datetime.now(timezone.utc)  # with backoff
+            assert fresh.run_at > datetime.now(UTC)  # with backoff
         else:
             assert fresh.status == models.JobStatus.FAILED  # budget exhausted
 

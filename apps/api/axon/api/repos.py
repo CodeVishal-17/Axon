@@ -22,6 +22,9 @@ from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
+from axon.adapters.base import AuthenticationError, RepositoryNotFoundError
+from axon.adapters.github.adapter import GitHubAdapter
+from axon.api.auth import authorize_repo, current_user, optional_user
 from axon.db.models import (
     Entity,
     EntityKind,
@@ -34,9 +37,6 @@ from axon.db.models import (
 )
 from axon.db.session import get_db
 from axon.jobs import queue
-from axon.api.auth import authorize_repo, current_user, optional_user
-from axon.adapters.github.adapter import GitHubAdapter
-from axon.adapters.base import AuthenticationError, RepositoryNotFoundError
 
 router = APIRouter(prefix="/api", tags=["repos"])
 
@@ -182,15 +182,25 @@ def connect_repo(
     try:
         adapter = GitHubAdapter(full_name=body.full_name, token=token_to_check)
         repo_info = adapter.fetch_repo_info()
-    except AuthenticationError:
-        raise HTTPException(status_code=401, detail="Invalid or expired GitHub token.")
-    except RepositoryNotFoundError:
-        raise HTTPException(status_code=404, detail="Repository not found or token lacks access.")
+    except AuthenticationError as exc:
+        raise HTTPException(
+            status_code=401, detail="Invalid or expired GitHub token."
+        ) from exc
+    except RepositoryNotFoundError as exc:
+        raise HTTPException(
+            status_code=404, detail="Repository not found or token lacks access."
+        ) from exc
 
     if repo is None:
         repo = Repo(
             full_name=body.full_name,
             owner_id=user.id,
+            # Record the provider's real identity now: ingestion refreshes
+            # these later, but until it does, anything reading
+            # repo.default_branch (webhooks, PR generation) would otherwise
+            # assume "main" for a repo whose default branch is master/develop.
+            external_id=repo_info.external_id,
+            default_branch=repo_info.default_branch,
             settings={"token": body.token} if body.token else {},
         )
         db.add(repo)
@@ -201,6 +211,7 @@ def connect_repo(
             repo.owner_id = user.id
         if body.token:
             repo.settings = {**repo.settings, "token": body.token}
+        repo.default_branch = repo_info.default_branch
         db.commit()
         if repo.ingest_status == IngestStatus.FAILED:
             repo.ingest_status = IngestStatus.PENDING

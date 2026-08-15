@@ -16,13 +16,13 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from sqlalchemy import func, select  # noqa: E402
-from sqlalchemy.orm import Session  # noqa: E402
+from sqlalchemy import func, select
+from sqlalchemy.orm import Session
 
-from axon.adapters.github.adapter import GitHubAdapter  # noqa: E402
-from axon.db import Base, models  # noqa: E402
-from axon.db.session import get_engine  # noqa: E402
-from axon.services.ingestion import IngestionService  # noqa: E402
+from axon.adapters.github.adapter import GitHubAdapter
+from axon.db import Base, models
+from axon.db.session import get_engine
+from axon.services.ingestion import IngestionService
 
 TIME_TARGET_S = 120.0
 
@@ -58,7 +58,7 @@ def main() -> None:
         counts = entity_counts(db, repo)
         print(f"\nEntity counts by kind: {counts}")
 
-        print(f"\n=== Second ingest (idempotency) ===")
+        print("\n=== Second ingest (idempotency) ===")
         report2 = IngestionService(db, adapter).run(repo)
         print(report2.summary())
 

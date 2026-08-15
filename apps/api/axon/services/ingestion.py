@@ -22,7 +22,6 @@ import re
 import time
 from collections import Counter, defaultdict
 from dataclasses import dataclass, field
-from typing import Iterable
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -211,7 +210,7 @@ class IngestionService:
         return (entity.kind, entity.path or entity.external_id or entity.name)
 
     def _load_existing(self, repo: Repo) -> None:
-        from sqlalchemy.orm import load_only
+        from sqlalchemy.orm import load_only  # noqa: PLC0415
         rows = self.db.scalars(
             select(Entity)
             .where(Entity.repo_id == repo.id)
@@ -371,7 +370,7 @@ class IngestionService:
                     counts[(commit.author_login, path)] += 1
 
         persons: dict[str, Entity] = {}
-        for (login, _), _ in counts.items():
+        for login, _ in counts:
             if login not in persons:
                 persons[login] = self._upsert(
                     repo,

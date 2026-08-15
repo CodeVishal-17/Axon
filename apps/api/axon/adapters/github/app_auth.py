@@ -167,7 +167,7 @@ def installation_token(installation_id: int) -> str:
 def _parse_iso_epoch(value: str | None, default: float) -> float:
     if not value:
         return default
-    from datetime import datetime
+    from datetime import datetime  # noqa: PLC0415
 
     try:
         return datetime.fromisoformat(value.replace("Z", "+00:00")).timestamp()

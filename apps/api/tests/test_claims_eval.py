@@ -1,8 +1,6 @@
 from pathlib import Path
 
-import pytest
-
-from axon.evals.claims_eval import DEFAULT_FIXTURES_PATH, DEFAULT_REPORT_PATH, load_fixtures, run
+from axon.evals.claims_eval import DEFAULT_FIXTURES_PATH, load_fixtures, run
 
 
 def test_load_fixtures_from_bundle() -> None:

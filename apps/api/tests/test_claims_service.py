@@ -11,7 +11,7 @@ import json
 import uuid
 
 import pytest
-from sqlalchemy import select, text
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from axon.db import Base, models
@@ -24,21 +24,7 @@ from axon.services.claims import (
     extract_for_eval,
     llm_configured,
 )
-
-
-def _db_available() -> bool:
-    try:
-        with get_engine().connect() as conn:
-            conn.execute(text("SELECT 1"))
-        return True
-    except Exception:
-        return False
-
-
-requires_db = pytest.mark.skipif(
-    not _db_available(),
-    reason="Postgres not reachable — start it with `docker compose up -d db`",
-)
+from tests.conftest import requires_db
 
 EMBED_DIM = models.EMBEDDING_DIM
 
@@ -151,7 +137,7 @@ def test_extract_for_eval_shapes_and_clamps(monkeypatch) -> None:
 
 
 def test_llm_configured_logic(monkeypatch) -> None:
-    from axon.config import Settings
+    from axon.config import Settings  # noqa: PLC0415
 
     assert not llm_configured(Settings(openai_api_key=None))
     assert llm_configured(Settings(openai_api_key="sk-x"))

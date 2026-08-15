@@ -16,13 +16,13 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from fastapi.testclient import TestClient  # noqa: E402
-from sqlalchemy import select  # noqa: E402
-from sqlalchemy.orm import Session  # noqa: E402
+from fastapi.testclient import TestClient
+from sqlalchemy import select
+from sqlalchemy.orm import Session
 
-from axon.db import Base, models  # noqa: E402
-from axon.db.session import get_engine  # noqa: E402
-from axon.main import create_app  # noqa: E402
+from axon.db import Base, models
+from axon.db.session import get_engine
+from axon.main import create_app
 
 WORKER_ENV = {**os.environ, "WORKER_POLL_INTERVAL_S": "0.3", "LOG_LEVEL": "WARNING"}
 

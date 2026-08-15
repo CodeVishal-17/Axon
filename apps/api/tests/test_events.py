@@ -24,6 +24,7 @@ from axon.db.session import get_engine
 from axon.main import create_app
 from axon.services.events import EventService, ScopedVerificationPlanner
 from axon.services.verification import DriftVerifier
+from tests.conftest import requires_db
 
 FIXTURES = json.loads(
     (Path(__file__).resolve().parents[1] / "axon" / "evals" / "events" / "fixtures.json")
@@ -62,21 +63,6 @@ def test_webhook_normalization(case: dict) -> None:
 
 
 # --- DB-backed ------------------------------------------------------------
-
-
-def _db_available() -> bool:
-    try:
-        with get_engine().connect() as conn:
-            conn.execute(text("SELECT 1"))
-        return True
-    except Exception:
-        return False
-
-
-requires_db = pytest.mark.skipif(
-    not _db_available(),
-    reason="Postgres not reachable — start it with `docker compose up -d db`",
-)
 
 
 @pytest.fixture()
@@ -299,7 +285,7 @@ class VerifierSpy:
 def test_verify_handler_scoped_provenance_budget_idempotent(
     db: Session, monkeypatch
 ) -> None:
-    from axon.jobs.handlers import verify as verify_handler
+    from axon.jobs.handlers import verify as verify_handler  # noqa: PLC0415
 
     repo = _seed_repo(db)
     ids = repo._test_ids  # type: ignore[attr-defined]
@@ -319,7 +305,7 @@ def test_verify_handler_scoped_provenance_budget_idempotent(
     call = VerifierSpy.calls[0]
     assert call["claim_ids"] == [ids["linked"]]            # scoped, not full repo
     assert str(call["event_id"]) == outcome.event_id       # provenance attached
-    from axon.config import get_settings
+    from axon.config import get_settings  # noqa: PLC0415
     assert call["budget"] == get_settings().verify_event_budget
 
     db.expire_all()
@@ -413,7 +399,7 @@ def _signed_headers(secret: str, body: bytes, event: str, delivery: str) -> dict
 
 @requires_db
 def test_webhook_endpoint_hmac_and_flow(client, db: Session, monkeypatch) -> None:
-    from axon.config import get_settings
+    from axon.config import get_settings  # noqa: PLC0415
 
     settings = get_settings()
     monkeypatch.setattr(settings, "github_webhook_secret", "hook-secret")
@@ -459,7 +445,7 @@ def test_webhook_endpoint_hmac_and_flow(client, db: Session, monkeypatch) -> Non
 def test_simulate_endpoint_secret_and_identical_path(
     client, db: Session, monkeypatch
 ) -> None:
-    from axon.config import get_settings
+    from axon.config import get_settings  # noqa: PLC0415
 
     settings = get_settings()
     monkeypatch.setattr(settings, "simulate_shared_secret", "sim-secret")

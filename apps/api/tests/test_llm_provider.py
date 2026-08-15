@@ -155,7 +155,7 @@ def test_anthropic_refusal_raises_llm_error() -> None:
 
 
 def _embeddings_client_stub(dim: int) -> Any:
-    def create(*, model: str, input: list[str]) -> Any:  # noqa: A002
+    def create(*, model: str, input: list[str]) -> Any:
         return SimpleNamespace(
             data=[
                 SimpleNamespace(index=i, embedding=[0.1] * dim)

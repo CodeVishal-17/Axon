@@ -9,7 +9,7 @@ files. Network-free by design — the live path is scripts/ingest_smoke.py.
 import uuid
 
 import pytest
-from sqlalchemy import select, text
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from axon.adapters.base import CommitInfo, KnowledgeDoc, RepoFile, RepoInfo, sha256_text
@@ -17,6 +17,7 @@ from axon.db import Base, models
 from axon.db.session import get_engine
 from axon.services import ingestion
 from axon.services.ingestion import IngestionService, should_ignore, split_markdown
+from tests.conftest import requires_db
 
 # --- Unit: ignore rules --------------------------------------------------
 
@@ -102,21 +103,6 @@ def test_split_markdown_no_headings() -> None:
 
 
 # --- Service tests (real Postgres) ---------------------------------------
-
-
-def _db_available() -> bool:
-    try:
-        with get_engine().connect() as conn:
-            conn.execute(text("SELECT 1"))
-        return True
-    except Exception:
-        return False
-
-
-requires_db = pytest.mark.skipif(
-    not _db_available(),
-    reason="Postgres not reachable — start it with `docker compose up -d db`",
-)
 
 
 class FakeAdapter:

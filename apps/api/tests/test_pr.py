@@ -23,6 +23,7 @@ from axon.services.pr import (
     branch_name_for,
     render_pr_body,
 )
+from tests.conftest import requires_db
 
 DOC_ORIGINAL = (
     "# Auth\n\n"
@@ -72,21 +73,6 @@ def test_apply_replacement_stale_and_ambiguous() -> None:
 
 
 # --- DB-backed -------------------------------------------------------------
-
-
-def _db_available() -> bool:
-    try:
-        with get_engine().connect() as conn:
-            conn.execute(text("SELECT 1"))
-        return True
-    except Exception:
-        return False
-
-
-requires_db = pytest.mark.skipif(
-    not _db_available(),
-    reason="Postgres not reachable — start it with `docker compose up -d db`",
-)
 
 
 class FakeWriteAdapter:
@@ -413,7 +399,7 @@ def test_action_endpoint_enqueues_and_guards(db: Session) -> None:
 
 @requires_db
 def test_generate_fix_job_handler_runs_service(db: Session, monkeypatch) -> None:
-    from axon.jobs.handlers import generate_fix as handler
+    from axon.jobs.handlers import generate_fix as handler  # noqa: PLC0415
 
     seen: list[uuid.UUID] = []
 
@@ -423,7 +409,7 @@ def test_generate_fix_job_handler_runs_service(db: Session, monkeypatch) -> None
 
         def open_pr_for_fix(self, fix_id):
             seen.append(fix_id)
-            from axon.services.pr import PROutcome
+            from axon.services.pr import PROutcome  # noqa: PLC0415
             return PROutcome(status="opened", pr_url="https://x/pr/1")
 
     monkeypatch.setattr(handler, "GitHubPRService", ServiceSpy)

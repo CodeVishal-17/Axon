@@ -284,7 +284,10 @@ class LinkReport:
 
 
 def _cosine(a: list[float], b: list[float]) -> float:
-    dot = sum(x * y for x, y in zip(a, b))
+    # strict=: mismatched dimensions mean one side came from a different
+    # embedding model — silently scoring on the shorter vector would produce a
+    # plausible-looking but meaningless similarity.
+    dot = sum(x * y for x, y in zip(a, b, strict=True))
     norm_a = sum(x * x for x in a) ** 0.5
     norm_b = sum(y * y for y in b) ** 0.5
     if not norm_a or not norm_b:

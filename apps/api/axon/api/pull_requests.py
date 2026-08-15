@@ -168,7 +168,9 @@ def list_pulls(
     try:
         pulls = list(adapter.iter_open_pulls(limit=limit))
     except AdapterError as exc:
-        raise HTTPException(status_code=502, detail=f"GitHub unavailable: {exc}")
+        raise HTTPException(
+            status_code=502, detail=f"GitHub unavailable: {exc}"
+        ) from exc
 
     items: list[PullOut] = []
     for pull in pulls:
@@ -264,5 +266,7 @@ def post_review(
     try:
         posted = PRReviewService(db).post_review(review)
     except AdapterError as exc:
-        raise HTTPException(status_code=502, detail=f"GitHub rejected the review: {exc}")
+        raise HTTPException(
+            status_code=502, detail=f"GitHub rejected the review: {exc}"
+        ) from exc
     return _review_out(posted)

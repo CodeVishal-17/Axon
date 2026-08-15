@@ -30,7 +30,11 @@ export function FindingActions({
 }) {
   const isDismissed = finding.status === "dismissed";
   const prOpened = finding.status === "actioned" || state.kind === "opened";
-  const prUrl = (state.kind === "opened" ? state.prUrl : finding.pr_url) || null;
+  // Prefer the URL this session's mutation returned, but always fall back to
+  // the one the API reports: a fix opened by an earlier session (or by the
+  // worker after this click) only ever arrives on the finding.
+  const prUrl =
+    (state.kind === "opened" ? state.prUrl : null) ?? finding.pr_url ?? null;
   const busy = state.kind === "pending";
 
   if (prOpened) {

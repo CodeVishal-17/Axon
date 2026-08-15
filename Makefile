@@ -5,7 +5,7 @@
 COMPOSE := docker compose
 API_DIR := apps/api
 
-.PHONY: install db api dev down logs revision migrate test types eval-claims
+.PHONY: install db api dev down logs revision migrate test lint lint-fix lint-web types eval-claims
 
 ## Install backend dependencies into the active virtualenv
 install:
@@ -46,6 +46,18 @@ migrate:
 ## Run backend tests
 test:
 	cd $(API_DIR) && pytest -q
+
+## Lint the backend (ruff config lives in apps/api/pyproject.toml).
+lint:
+	cd $(API_DIR) && ruff check .
+
+## Auto-fix what ruff can fix safely, then report what is left.
+lint-fix:
+	cd $(API_DIR) && ruff check . --fix
+
+## Lint + typecheck the frontend.
+lint-web:
+	cd apps/web && npx tsc --noEmit && npx eslint .
 
 ## Evaluate the claim-extraction prompt against the gold fixtures.
 ## `auto` runs the real LLM when API keys are configured, else falls back

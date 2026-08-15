@@ -14,10 +14,10 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from pydantic import BaseModel  # noqa: E402
+from pydantic import BaseModel
 
-from axon.config import get_settings  # noqa: E402
-from axon.llm import provider as llm  # noqa: E402
+from axon.config import get_settings
+from axon.llm import provider as llm
 
 
 class ClaimExtraction(BaseModel):
@@ -54,7 +54,7 @@ def main() -> None:
     ran = []
 
     if settings.openai_api_key:
-        from axon.llm.openai import OpenAIProvider
+        from axon.llm.openai import OpenAIProvider  # noqa: PLC0415
 
         run_provider("openai", OpenAIProvider())
         ran.append("openai")
@@ -67,7 +67,7 @@ def main() -> None:
         print("skipping openai (+embeddings): OPENAI_API_KEY not set")
 
     if settings.anthropic_api_key:
-        from axon.llm.anthropic import AnthropicProvider
+        from axon.llm.anthropic import AnthropicProvider  # noqa: PLC0415
 
         run_provider("anthropic", AnthropicProvider())
         ran.append("anthropic")

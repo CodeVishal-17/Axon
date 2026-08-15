@@ -15,7 +15,7 @@ import json
 import uuid
 
 import pytest
-from sqlalchemy import select, text
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from axon.adapters.base import PullRequestFile, PullRequestInfo
@@ -29,6 +29,7 @@ from axon.services.pr_review import (
     commentable_lines,
     diff_line_numbers,
 )
+from tests.conftest import requires_db as pytestmark_db
 
 # --- Fixtures / doubles ---------------------------------------------------
 
@@ -192,21 +193,6 @@ def test_gate_counts_both_lenses_separately():
 
 
 # --- DB-backed: the real service -----------------------------------------
-
-
-def _db_available() -> bool:
-    try:
-        with get_engine().connect() as conn:
-            conn.execute(text("SELECT 1"))
-        return True
-    except Exception:
-        return False
-
-
-pytestmark_db = pytest.mark.skipif(
-    not _db_available(),
-    reason="Postgres not reachable — start it with `docker compose up -d db`",
-)
 
 
 @pytest.fixture()

@@ -1,0 +1,67 @@
+[tool.ruff]
+# Match the style the codebase already writes in.
+line-length = 100
+target-version = "py312"
+extend-exclude = ["axon/db/migrations/versions"]
+
+[tool.ruff.lint]
+select = [
+    "E", "W",    # pycodestyle
+    "F",         # pyflakes — unused imports/variables, real mistakes
+    "I",         # import sorting
+    "UP",        # pyupgrade
+    "B",         # bugbear
+    "SIM",       # simplifications
+    "PERF",      # obvious performance traps
+    "RUF",       # ruff-specific
+    "PLC0415",   # import-outside-top-level (see below)
+]
+ignore = [
+    # FastAPI's whole dependency system is `x = Depends(...)` in a default
+    # argument. B008 flags the pattern the framework requires.
+    "B008",
+    # The codebase wraps long messages across implicitly concatenated
+    # f-strings inside tuples/calls; that is deliberate, not a missing comma.
+    "ISC001", "ISC003",
+    # Long lines are only flagged by E501 here when they are truly extreme;
+    # prose in docstrings is allowed to run to the edge.
+    "E501",
+    # The docs and docstrings use em-dashes and typographic quotes on purpose.
+    "RUF001", "RUF002", "RUF003",
+    # `class X(str, Enum)` is deliberate: SQLAlchemy persists `.value` through
+    # it, and switching to StrEnum would change serialization behaviour.
+    "UP042",
+    # Unpacking a pair and using one half is idiomatic and readable here.
+    "RUF059",
+    # An explicit append loop with a comment in it reads better than a dense
+    # comprehension; the services use them where the body is non-trivial.
+    "PERF401",
+    # The path filters are chains of early-return guards. Collapsing only the
+    # LAST one into `return <cond>` breaks the symmetry that makes them scan.
+    "SIM103",
+    # PEP-695 `def f[T](...)` would churn the provider signatures for no
+    # runtime benefit.
+    "UP047",
+]
+
+# PLC0415 is selected on purpose: the codebase deliberately defers heavy or
+# cycle-forming imports into functions and already annotates each one with
+# `# noqa: PLC0415`. Enabling the rule makes those comments meaningful — and
+# makes any NEW local import an explicit, reviewed decision rather than drift.
+
+[tool.ruff.lint.per-file-ignores]
+# Package roots re-export names on purpose.
+"__init__.py" = ["F401"]
+# Tests: fixtures shadow names, asserts are the point, and a test-local class
+# attribute holding a list is not the shared-mutable-default footgun.
+"tests/*" = ["B011", "PERF203", "RUF012", "SIM115"]
+# Offline evaluation harnesses, not library code: `l` for a link and nested
+# ifs mirroring the report structure are fine at this size.
+"axon/evals/*" = ["E741", "SIM102"]
+# Alembic's env.py guards an optional import by design.
+"axon/db/migrations/env.py" = ["SIM105"]
+# Scripts are operator tools, not library code.
+"scripts/*" = ["T201"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["axon"]

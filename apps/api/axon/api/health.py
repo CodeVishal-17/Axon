@@ -39,7 +39,7 @@ def healthz() -> HealthResponse:
     try:
         with get_sessionmaker()() as session:
             session.execute(text("SELECT 1"))
-    except Exception as exc:  # noqa: BLE001 — any DB failure means "unavailable"
+    except Exception as exc:
         logger.warning("healthz database check failed: %s", exc)
         database = "unavailable"
 

@@ -28,7 +28,7 @@ from __future__ import annotations
 
 import logging
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any, Literal
 
 from pydantic import BaseModel, Field
@@ -406,5 +406,7 @@ class ClaimExtractionService:
         vectors = llm.embed(
             [c.statement for c in claims], provider=self._embedding
         )
-        for claim, vector in zip(claims, vectors):
+        # strict=: a short batch from the provider would otherwise leave the
+        # tail of `claims` silently un-embedded (and so unlinkable).
+        for claim, vector in zip(claims, vectors, strict=True):
             claim.embedding = vector

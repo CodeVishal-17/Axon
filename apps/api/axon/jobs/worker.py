@@ -20,12 +20,12 @@ import time
 
 from sqlalchemy.orm import Session
 
+from axon.adapters.base import AuthenticationError, RateLimitError
 from axon.config import get_settings
 from axon.db.models import Job
 from axon.db.session import get_sessionmaker
 from axon.jobs import queue
 from axon.jobs.handlers import get_handler
-from axon.adapters.base import RateLimitError, AuthenticationError
 
 logger = logging.getLogger("axon.jobs.worker")
 
@@ -60,7 +60,7 @@ class Worker:
         while not self._stop:
             try:
                 worked = self.run_once()
-            except Exception:  # noqa: BLE001 — a DB outage must not kill the worker
+            except Exception:
                 logger.exception(
                     "poll cycle failed (database down?) — retrying in %.1fs",
                     self.poll_interval_s,
@@ -95,14 +95,14 @@ class Worker:
                 "job done id=%s kind=%s duration=%.1fs",
                 job_id, kind.value, time.monotonic() - started,
             )
-        except Exception as exc:  # noqa: BLE001 — worker must survive any handler error
+        except Exception as exc:
             db.rollback()  # discard the handler's partial work
             logger.exception("job handler raised id=%s kind=%s", job_id, kind.value)
-            
+
             run_at = None
             if isinstance(exc, RateLimitError) and exc.reset_at:
                 run_at = exc.reset_at
-            
+
             if isinstance(exc, AuthenticationError):
                 # Expired token won't recover; fail permanently via existing mechanism
                 job = db.get(Job, job_id)

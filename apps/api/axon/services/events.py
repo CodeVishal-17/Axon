@@ -20,12 +20,13 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Literal
 
 from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
+from axon.adapters.base import NormalizedEvent
 from axon.db.models import (
     Claim,
     ClaimLink,
@@ -37,7 +38,6 @@ from axon.db.models import (
     JobKind,
     Repo,
 )
-from axon.adapters.base import NormalizedEvent
 from axon.jobs import queue
 
 logger = logging.getLogger("axon.services.events")
@@ -101,8 +101,8 @@ class EventService:
             },
         )
         self.db.add(event)
-        
-        from sqlalchemy.exc import IntegrityError
+
+        from sqlalchemy.exc import IntegrityError  # noqa: PLC0415
         try:
             self.db.flush()
         except IntegrityError:
@@ -218,5 +218,5 @@ class ScopedVerificationPlanner:
 
 
 def mark_processed(db: Session, event: Event) -> None:
-    event.processed_at = datetime.now(timezone.utc)
+    event.processed_at = datetime.now(UTC)
     db.commit()

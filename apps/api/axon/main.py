@@ -17,8 +17,8 @@ from axon.api.auth import router as auth_router
 from axon.api.dashboard import router as dashboard_router
 from axon.api.findings import router as findings_router
 from axon.api.github import router as github_router
-from axon.api.pull_requests import router as pull_requests_router
 from axon.api.health import router as health_router
+from axon.api.pull_requests import router as pull_requests_router
 from axon.api.repos import router as repos_router
 from axon.api.webhooks import router as webhooks_router
 from axon.config import get_settings

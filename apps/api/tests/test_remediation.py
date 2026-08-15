@@ -10,7 +10,7 @@ import json
 import uuid
 
 import pytest
-from sqlalchemy import select, text
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from axon.db import Base, models
@@ -22,6 +22,7 @@ from axon.services.remediation import (
     load_proposal,
     unsupported_numbers,
 )
+from tests.conftest import requires_db as pytestmark_db
 
 DOC_TEXT = (
     "## Auth\n\n"
@@ -56,21 +57,6 @@ def test_value_gate_flags_invented_numbers() -> None:
 
 
 # --- DB-backed ------------------------------------------------------------
-
-
-def _db_available() -> bool:
-    try:
-        with get_engine().connect() as conn:
-            conn.execute(text("SELECT 1"))
-        return True
-    except Exception:
-        return False
-
-
-pytestmark_db = pytest.mark.skipif(
-    not _db_available(),
-    reason="Postgres not reachable — start it with `docker compose up -d db`",
-)
 
 
 class ScriptedCompletion:
@@ -343,9 +329,9 @@ def test_verify_handler_runs_remediation_after_verification(
     db: Session, monkeypatch
 ) -> None:
     """The event pipeline runs the Act stage after the Verify stage."""
-    from axon.adapters.github.adapter import GitHubAdapter
-    from axon.jobs.handlers import verify as verify_handler
-    from axon.services.events import EventService
+    from axon.adapters.github.adapter import GitHubAdapter  # noqa: PLC0415
+    from axon.jobs.handlers import verify as verify_handler  # noqa: PLC0415
+    from axon.services.events import EventService  # noqa: PLC0415
 
     order: list[str] = []
 

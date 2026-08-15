@@ -122,11 +122,11 @@ def get_completion_provider() -> CompletionProvider:
     """
     settings = get_settings()
     if settings.llm_provider == "openai":
-        from axon.llm.openai import OpenAIProvider
+        from axon.llm.openai import OpenAIProvider  # noqa: PLC0415
 
         return OpenAIProvider()
     if settings.llm_provider == "anthropic":
-        from axon.llm.anthropic import AnthropicProvider
+        from axon.llm.anthropic import AnthropicProvider  # noqa: PLC0415
 
         return AnthropicProvider()
     raise LLMError(
@@ -137,7 +137,7 @@ def get_completion_provider() -> CompletionProvider:
 @lru_cache(maxsize=1)
 def get_embedding_provider() -> EmbeddingProvider:
     """Embeddings are always OpenAI (see module docstring)."""
-    from axon.llm.openai import OpenAIProvider
+    from axon.llm.openai import OpenAIProvider  # noqa: PLC0415
 
     return OpenAIProvider()
 

@@ -18,6 +18,7 @@ from pydantic import BaseModel, ConfigDict
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session, joinedload
 
+from axon.api.auth import authorize_repo, optional_user
 from axon.db.models import (
     Claim,
     ClaimStatus,
@@ -31,11 +32,10 @@ from axon.db.models import (
     FixStatus,
     JobKind,
     Repo,
+    User,
 )
 from axon.db.session import get_db
 from axon.jobs import queue
-from axon.api.auth import authorize_repo, optional_user
-from axon.db.models import User
 
 router = APIRouter(prefix="/api", tags=["findings"])
 
@@ -277,7 +277,7 @@ def finding_action(
     # Commit the PENDING state and the job enqueue atomically
     fix.status = FixStatus.PENDING
     job = queue.enqueue(db, JobKind.GENERATE_FIX, {"fix_id": str(fix.id)})
-    
+
     return FindingActionResponse(
         status="queued", finding_status=finding.status, job_id=str(job.id)
     )

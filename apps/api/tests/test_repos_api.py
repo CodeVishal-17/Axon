@@ -13,25 +13,36 @@ from fastapi.testclient import TestClient
 from sqlalchemy import select, text
 from sqlalchemy.orm import Session
 
+from axon.adapters.base import RepoInfo
 from axon.api.auth import current_user, optional_user
 from axon.db import Base, models
 from axon.db.session import get_engine
 from axon.main import create_app
 
 
-def _db_available() -> bool:
-    try:
-        with get_engine().connect() as conn:
-            conn.execute(text("SELECT 1"))
-        return True
-    except Exception:
-        return False
+class _StubAdapter:
+    """Stands in for GitHubAdapter so connecting a repo needs no network.
+
+    These are endpoint tests: reaching api.github.com made them fail on a
+    missing token, a rate limit, or an offline laptop — none of which is what
+    they are testing.
+    """
+
+    def __init__(self, full_name: str, token: str | None = None, **_: object) -> None:
+        self.full_name = full_name
+
+    def fetch_repo_info(self) -> RepoInfo:
+        return RepoInfo(
+            external_id="12345",
+            full_name=self.full_name,
+            default_branch="main",
+            head_sha="a" * 40,
+        )
 
 
-pytestmark = pytest.mark.skipif(
-    not _db_available(),
-    reason="Postgres not reachable — start it with `docker compose up -d db`",
-)
+@pytest.fixture(autouse=True)
+def _stub_github(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr("axon.api.repos.GitHubAdapter", _StubAdapter)
 
 
 @pytest.fixture(scope="module")
@@ -113,6 +124,30 @@ def test_post_creates_repo_and_enqueues_job(client: TestClient, db: Session) -> 
     assert "settings" not in body
     detail = client.get(f"/api/repos/{body['id']}")
     assert "ghp_secret123" not in detail.text
+
+
+def test_post_records_provider_identity(
+    client: TestClient, db: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Connect stores the repo's REAL default branch. It used to discard the
+    fetched RepoInfo, leaving 'main' until the first ingest — and anything
+    reading repo.default_branch before then (webhooks, PR generation) aimed at
+    a branch that may not exist."""
+
+    class _DevelopAdapter(_StubAdapter):
+        def fetch_repo_info(self) -> RepoInfo:
+            return RepoInfo(
+                external_id="777", full_name=self.full_name,
+                default_branch="develop", head_sha="b" * 40,
+            )
+
+    monkeypatch.setattr("axon.api.repos.GitHubAdapter", _DevelopAdapter)
+    body = client.post("/api/repos", json={"full_name": _unique_name()}).json()
+
+    repo = db.get(models.Repo, uuid.UUID(body["id"]))
+    assert repo.default_branch == "develop"
+    assert repo.external_id == "777"
+    assert body["default_branch"] == "develop"
 
 
 def test_post_rejects_bad_full_name(client: TestClient) -> None:

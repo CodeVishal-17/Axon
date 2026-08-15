@@ -30,9 +30,10 @@ from __future__ import annotations
 
 import logging
 import time
-from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from typing import Callable, Literal
+from collections.abc import Callable
+from dataclasses import dataclass
+from datetime import UTC, datetime
+from typing import Literal
 
 from pydantic import BaseModel, Field
 from sqlalchemy import select
@@ -149,7 +150,7 @@ class DriftVerifier:
         fetch_file: FetchFile | None = None,
         budget: int | None = None,
         max_source_chars: int | None = None,
-        event: "Event | None" = None,
+        event: Event | None = None,
     ) -> None:
         settings = get_settings()
         self.db = db
@@ -189,7 +190,7 @@ class DriftVerifier:
         # Strongest evidence first: claims with the best links are the ones
         # a budgeted pass should spend on (architecture §9).
         claims.sort(
-            key=lambda c: max((l.strength for l in c.links), default=0.0),
+            key=lambda c: max((link.strength for link in c.links), default=0.0),
             reverse=True,
         )
 
@@ -256,7 +257,7 @@ class DriftVerifier:
 
         if verdict.verdict == "VERIFIED":
             claim.status = ClaimStatus.VERIFIED
-            claim.last_verified_at = datetime.now(timezone.utc)
+            claim.last_verified_at = datetime.now(UTC)
             self.report.verified += 1
             self._resolve_open_findings(claim)
             return
@@ -272,7 +273,7 @@ class DriftVerifier:
 
     def _gather_sources(self, claim: Claim) -> list[Source]:
         sources: list[Source] = []
-        for link in sorted(claim.links, key=lambda l: -l.strength):
+        for link in sorted(claim.links, key=lambda cl: -cl.strength):
             entity = self.db.get(Entity, link.entity_id)
             if entity is None or entity.path is None:
                 continue

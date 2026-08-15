@@ -19,12 +19,12 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from sqlalchemy import select, text  # noqa: E402
-from sqlalchemy.orm import Session  # noqa: E402
+from sqlalchemy import select, text
+from sqlalchemy.orm import Session
 
-from axon.db import Base, models  # noqa: E402
-from axon.db.session import get_engine  # noqa: E402
-from axon.jobs import queue  # noqa: E402
+from axon.db import Base, models
+from axon.db.session import get_engine
+from axon.jobs import queue
 
 WORKER_ENV = {
     **os.environ,

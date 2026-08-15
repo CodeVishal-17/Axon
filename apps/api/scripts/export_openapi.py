@@ -19,7 +19,7 @@ from pathlib import Path
 # Make `import axon` work when invoked as a plain script from apps/api/.
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from axon.main import create_app  # noqa: E402
+from axon.main import create_app
 
 
 def main() -> None:

@@ -18,7 +18,7 @@ from axon.db.base import Base
 
 # Import models so they register on Base.metadata before autogenerate runs.
 # T0.4 introduces axon/db/models.py; the guard keeps env.py functional now.
-try:  # noqa: SIM105
+try:
     from axon.db import models  # noqa: F401
 except ImportError:
     pass

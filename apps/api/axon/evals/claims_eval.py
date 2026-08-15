@@ -48,10 +48,11 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+from collections.abc import Callable
 from dataclasses import dataclass
 from difflib import SequenceMatcher
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 
 VALID_CLAIM_TYPES = {"behavior", "architecture", "process", "status"}
 MATCH_THRESHOLD = 0.55

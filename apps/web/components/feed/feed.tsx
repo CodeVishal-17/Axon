@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import {
   ApiError,
   type FindingAction,
@@ -76,7 +76,7 @@ function friendlyError(error: unknown, context: "feed" | "action"): string {
  */
 export function Feed({ repoId }: { repoId: string }) {
   const [status, setStatus] = useState<FindingStatus>("open");
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedFinding, setSelectedFinding] = useState<FindingOut | null>(null);
   const [actionStates, setActionStates] = useState<Record<string, ActionState>>(
     {},
   );
@@ -105,21 +105,17 @@ export function Feed({ repoId }: { repoId: string }) {
     );
   }, [query.data]);
 
-  const [cachedFinding, setCachedFinding] = useState<FindingOut | null>(null);
-
-  const activeFinding = useMemo(
-    () => findings.find((finding) => finding.id === selectedId) ?? null,
-    [findings, selectedId],
-  );
-
-  // Keep a cached copy of the selected finding so the panel doesn't slam shut
-  // when the finding is actioned and disappears from the open feed.
-  useEffect(() => {
-    if (activeFinding) setCachedFinding(activeFinding);
-  }, [activeFinding]);
-
-  const selected: FindingOut | null =
-    activeFinding ?? (selectedId === cachedFinding?.id ? cachedFinding : null);
+  // Selection holds the finding itself, not just its id. The panel then keeps
+  // rendering after the finding is actioned and drops out of the open feed —
+  // no separate cache, no effect mirroring one piece of state into another.
+  // Fresh data still wins: the feed copy is preferred whenever it is present.
+  const selected: FindingOut | null = useMemo(() => {
+    if (!selectedFinding) return null;
+    return (
+      findings.find((finding) => finding.id === selectedFinding.id) ??
+      selectedFinding
+    );
+  }, [findings, selectedFinding]);
   const { arrivalIds, featuredChanged } = useFindingArrivals(findings, {
     enabled: query.isSuccess,
     scopeKey: status,
@@ -144,7 +140,7 @@ export function Feed({ repoId }: { repoId: string }) {
                     ? { kind: "opened", prUrl: response.pr_url }
                     : { kind: "queued" },
             }));
-            if (action === "dismiss") setSelectedId(null);
+            if (action === "dismiss") setSelectedFinding(null);
           },
           onError: (error) => {
             setActionStates((current) => ({
@@ -161,12 +157,17 @@ export function Feed({ repoId }: { repoId: string }) {
     [mutation],
   );
 
-  const handleOpen = useCallback((findingId: string) => {
-    setSelectedId(findingId);
-  }, []);
+  const handleOpen = useCallback(
+    (findingId: string) => {
+      setSelectedFinding(
+        findings.find((finding) => finding.id === findingId) ?? null,
+      );
+    },
+    [findings],
+  );
 
   const handleDetailOpenChange = useCallback((open: boolean) => {
-    if (!open) setSelectedId(null);
+    if (!open) setSelectedFinding(null);
   }, []);
 
   const body = () => {

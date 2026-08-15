@@ -5,7 +5,7 @@ Alembic, and ``create_all`` can rely on ``import axon.db`` for full schema
 discovery.
 """
 
-from axon.db.base import Base
 from axon.db import models
+from axon.db.base import Base
 
 __all__ = ["Base", "models"]

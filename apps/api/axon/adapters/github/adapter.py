@@ -27,15 +27,15 @@ import httpx
 from axon.adapters.base import (
     AdapterError,
     AuthenticationError,
-    RateLimitError,
-    RepositoryNotFoundError,
     CommitInfo,
     KnowledgeDoc,
     NormalizedEvent,
     PullRequestFile,
     PullRequestInfo,
+    RateLimitError,
     RepoFile,
     RepoInfo,
+    RepositoryNotFoundError,
     sha256_text,
 )
 from axon.config import get_settings
@@ -76,22 +76,22 @@ class GitHubAdapter:
             headers["Authorization"] = f"Bearer {resolved_token}"
         # `client` injection exists for tests (no network).
         self._client = client or httpx.Client(
-            headers=headers, 
-            timeout=httpx.Timeout(60.0, connect=10.0), 
+            headers=headers,
+            timeout=httpx.Timeout(60.0, connect=10.0),
             follow_redirects=True
         )
 
     # --- internals -------------------------------------------------------
 
     def _request_with_retry(self, method: str, path: str, allow_statuses: tuple[int, ...] = (), **kwargs: Any) -> httpx.Response:
-        import time
+        import time  # noqa: PLC0415
         max_attempts = 3
         for attempt in range(max_attempts):
             response = self._client.request(method, f"{_API}{path}", **kwargs)
             if response.status_code in (502, 503, 504) and attempt < max_attempts - 1:
                 time.sleep(2 ** attempt)
                 continue
-            
+
             if response.status_code in allow_statuses:
                 return response
 
@@ -101,7 +101,7 @@ class GitHubAdapter:
                 reset_str = response.headers.get("x-ratelimit-reset")
                 reset_at = datetime.fromtimestamp(int(reset_str)) if reset_str else None
                 raise RateLimitError(
-                    f"GitHub rate limit exhausted (resets at {reset_str}).", 
+                    f"GitHub rate limit exhausted (resets at {reset_str}).",
                     reset_at=reset_at
                 )
             if response.status_code == 404:
